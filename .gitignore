@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Environment files and credentials
+.env
+.env.*
+secrets/
+.secrets/
+credentials/
+*.secret
+*.secrets
+*.credentials
+*.token
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+
+# Local demo data (may contain customer, vehicle or tracking data)
+.local-data/
+
+# Logs and process artifacts
+logs/
+*.log
+*.pid
+*.pid.lock
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Temporary files and caches
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+.cache/
+.vite/
+.parcel-cache/
+
+# Build and test output
+build/
+dist/
+out/
+.next/
+coverage/
+.nyc_output/
+
+# Operating system files
+.DS_Store
+Thumbs.db

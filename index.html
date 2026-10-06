@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101d32" />
+    <meta name="description" content="Portal privado para consultar el seguimiento y la documentación de tus transportes." />
+    <link rel="icon" type="image/svg+xml" href="/brand.svg" />
+    <title>Nexo · Portal logístico</title>
+    <link rel="stylesheet" href="/portal.css" />
+    <link rel="stylesheet" href="/workflow.css" />
+  </head>
+  <body>
+    <div class="portal-shell">
+      <aside class="portal-sidebar" id="portalSidebar">
+        <a class="portal-brand" href="#inicio" aria-label="Nexo, inicio"><img class="portal-brand-mark" src="/brand.svg" alt="" /><span><b>nexo</b><small>PORTAL LOGÍSTICO</small></span></a>
+        <div class="client-switch"><span class="client-avatar">ND</span><span><b>Nova Distribución</b><small>Cuenta de cliente</small></span><span class="switch-caret">⌄</span></div>
+        <div class="portal-nav-label">MI CUENTA</div>
+        <nav class="portal-nav" aria-label="Menú principal">
+          <a href="#inicio" data-page="inicio" class="portal-nav-item active"><span>⌂</span>Resumen</a>
+          <a href="#seguimiento" data-page="seguimiento" class="portal-nav-item"><span>⌖</span>Seguimiento <i class="nav-badge">3</i></a>
+          <a href="#pedidos" data-page="pedidos" class="portal-nav-item"><span>▤</span>Pedidos</a>
+          <a href="#documentos" data-page="documentos" class="portal-nav-item"><span>▧</span>Documentación <i class="nav-dot"></i></a>
+          <a href="#incidencias" data-page="incidencias" class="portal-nav-item"><span>⚑</span>Incidencias <i class="nav-badge warning" id="incidentCount">2</i></a>
+          <a href="#facturacion" data-page="facturacion" class="portal-nav-item"><span>€</span>Facturación</a>
+        </nav>
+        <div class="portal-sidebar-bottom">
+          <div class="support-card"><span class="support-icon">✦</span><b>¿Necesitas ayuda?</b><p>Contacta con tu equipo de transporte para resolver cualquier duda.</p><button data-contact-support>Contactar con soporte <span>→</span></button></div>
+          <div class="client-profile"><span class="client-profile-avatar">LM</span><span><b>Laura Martín</b><small>Responsable de logística</small></span><button aria-label="Opciones de perfil">···</button></div>
+        </div>
+      </aside>
+      <div class="portal-overlay" id="portalOverlay"></div>
+      <main class="portal-main">
+        <header class="portal-topbar">
+          <button class="portal-menu-button" id="portalMenuButton" aria-label="Abrir menú">☰</button>
+          <div class="portal-breadcrumb"><span>Nova Distribución</span><span>/</span><b id="portalBreadcrumb">Resumen</b></div>
+          <nav class="role-switcher" aria-label="Paneles de demostración"><a class="selected" href="/">Cliente</a><a href="/transporter.html">Transportista</a><a href="/driver.html">Conductor</a></nav>
+          <div class="portal-top-actions"><span class="private-pill demo-pill"><i></i> ENTORNO DEMO</span><button class="portal-notification" id="portalNotifications" aria-label="Notificaciones">♧<i></i></button><span class="top-divider"></span><button class="portal-help" data-contact-support>Ayuda <span>↗</span></button></div>
+        </header>
+        <div id="portalContent" class="portal-content"></div>
+        <footer class="portal-footer"><span>© 2026 Nexo · Portal de cliente <b class="demo-footer">Datos de demostración</b></span><span class="sync-status"><i></i> Sincronización de ejemplo · GEStracking <b>· API</b></span></footer>
+      </main>
+    </div>
+    <div id="portalModal"></div>
+    <div id="portalToast" class="portal-toast-root" aria-live="polite"></div>
+    <script type="module" src="/src/clientPortal.js"></script>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#101d32" />
+  <meta name="description" content="Panel móvil de servicio para conductores · Nexo demo" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Nexo Conductor" />
+  <link rel="apple-touch-icon" href="/brand.svg" />
+  <link rel="manifest" href="/driver.webmanifest" />
+  <title>Nexo · App del conductor</title>
+  <link rel="icon" type="image/svg+xml" href="/brand.svg" />
+  <link rel="stylesheet" href="/workflow.css" />
+</head>
+<body class="driver-body">
+  <header class="driver-topbar"><a class="driver-brand" href="/driver.html"><img src="/brand.svg" alt=""/><span>Nexo <small>CONDUCTOR</small></span></a><nav class="role-switcher" aria-label="Paneles de demostración"><a href="/">Cliente</a><a href="/transporter.html">Transportista</a><a class="selected" href="/driver.html">Conductor</a></nav><span class="driver-demo-tag">DEMO</span></header>
+  <main class="driver-main">
+    <div class="driver-welcome"><div><div class="driver-eyebrow">LUNES · 5 OCTUBRE 2026</div><h1>Hola, Miguel</h1><p>Este es tu servicio activo. Conduce con seguridad.</p></div><span class="driver-avatar-large">MG</span></div>
+    <section class="driver-service-card"><div class="driver-service-heading"><div><span class="driver-label">SERVICIO ACTUAL</span><h2>NV-24081 <small>· Ref. CLI-78452</small></h2></div><span id="driverStatus" class="driver-status">En ruta</span></div>
+      <div class="driver-route"><div class="driver-route-point"><i class="origin-dot"></i><span><small>ORIGEN</small><b>Valencia</b><em>Recogida real · 08:12</em></span></div><div class="driver-route-line"><span>≈ 355 km</span></div><div class="driver-route-point"><i class="destination-dot"></i><span><small>DESTINO</small><b>Madrid</b><em>Entrega planificada · 13:00</em></span></div></div>
+      <div class="driver-load"><span>📦 <b>Alimentación refrigerada</b><small>18 palets · 18.500 kg</small></span><span class="driver-temp"><small>TEMPERATURA</small><b>4,2 °C</b></span></div>
+      <div id="driverPrimaryAction" class="driver-primary-action"></div>
+    </section>
+    <section class="driver-quick-actions"><button data-driver-incident class="driver-quick-button"><i class="driver-action-icon incident-icon-bg">⚑</i><span>Comunicar<br/>incidencia</span></button><button data-driver-docs class="driver-quick-button"><i class="driver-action-icon doc-icon-bg">▤</i><span>Documentos<br/>del servicio</span></button><a href="tel:+34600123456" class="driver-quick-button"><i class="driver-action-icon call-icon-bg">☎</i><span>Llamar a<br/>operaciones</span></a></section>
+    <section class="driver-section"><div class="driver-section-heading"><div><h2>Actividad del servicio</h2><p>Actualizaciones compartidas con la empresa y el cliente.</p></div><span class="workflow-live-badge"><i></i> Sincronizado</span></div><div id="driverWorkflowEvents" class="driver-event-list"><div class="driver-loading">Cargando actividad…</div></div></section>
+    <section class="driver-documents" id="driverDocuments"><div class="driver-section-heading"><div><h2>Documentos</h2><p>Acceso rápido a la documentación del viaje.</p></div><span class="driver-doc-count">2</span></div><button class="driver-document-row" data-driver-document="Documento DeCA · QR"><span class="driver-file-icon">QR</span><span><b>Documento de control DeCA</b><small>QR disponible · NV-24081</small></span><span>›</span></button><button class="driver-document-row" data-driver-document="Carta de porte"><span class="driver-file-icon pdf">PDF</span><span><b>Carta de porte</b><small>Emitida · NV-24081</small></span><span>›</span></button></section>
+    <p class="driver-demo-note">Demo de producto · Ubicación y acciones del servicio son datos simulados.</p>
+  </main>
+  <div id="driverToast" class="driver-toast" aria-live="polite"></div>
+  <script type="module" src="/src/driver.js"></script>
+</body>
+</html>

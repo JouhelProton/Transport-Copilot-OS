@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#101d32" />
+  <title>Nexo · Operaciones del transportista</title>
+  <link rel="icon" type="image/svg+xml" href="/brand.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/portal.css" />
+  <link rel="stylesheet" href="/workflow.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="/transporter.html"><img src="/brand.svg" alt=""/><span><b>Nexo</b><small>TRANSPORT AI OS</small></span></a>
+      <div class="workspace-switch"><span class="workspace-avatar">TV</span><span><b>Transportes Valencia Demo</b><small>Panel de operaciones</small></span><span>⌄</span></div>
+      <div class="nav-section-label">OPERACIONES</div>
+      <nav class="sidebar-nav" aria-label="Operaciones">
+        <a class="nav-item" href="#dashboard" data-page="dashboard"><span>⌂</span>Dashboard</a>
+        <a class="nav-item" href="#servicios" data-page="servicios"><span>⇄</span>Servicios</a>
+        <a class="nav-item" href="#pedidos" data-page="pedidos"><span>▤</span>Pedidos</a>
+        <a class="nav-item" href="#documentos" data-page="documentos"><span>▧</span>Documentos</a>
+        <a class="nav-item" href="#incidencias" data-page="incidencias"><span>⚑</span>Incidencias <i class="nav-count alert-count">2</i></a>
+        <a class="nav-item" href="#facturacion" data-page="facturacion"><span>€</span>Facturación</a>
+        <a class="nav-item" href="#automatizaciones" data-page="automatizaciones"><span>✳</span>Automatizaciones</a>
+        <a class="nav-item" href="#clientes" data-page="clientes"><span>♙</span>Clientes</a>
+        <a class="nav-item" href="#vehiculos" data-page="vehiculos"><span>▰</span>Flota y conductores</a>
+        <a class="nav-item" href="#configuracion" data-page="configuracion"><span>⚙</span>Integraciones</a>
+      </nav>
+      <div class="sidebar-bottom"><div class="sidebar-tip"><b>Una operación conectada</b><small>Pedido → servicio → conductor → entrega → factura</small></div><div class="user-profile"><span class="user-avatar">CM</span><span><b>Carlos Martínez</b><small>Administrador demo</small></span><span>···</span></div></div>
+    </aside>
+    <div class="main-area">
+      <header class="topbar"><button class="mobile-menu" id="mobileMenu" aria-label="Abrir menú">☰</button><div class="breadcrumbs"><span>Transportes Valencia Demo</span><span>/</span><b id="breadcrumbPage">Dashboard</b></div>
+        <nav class="role-switcher" aria-label="Paneles de demostración"><a href="/">Cliente</a><a class="selected" href="/transporter.html">Transportista</a><a href="/driver.html">Conductor</a></nav>
+        <div class="topbar-actions"><span class="demo-tag">DEMO</span><button class="notification-button" aria-label="Notificaciones">♧</button><span class="top-divider"></span><button class="help-button" id="helpButton">Ayuda</button></div>
+      </header>
+      <main class="content" id="content"></main>
+      <footer class="app-footer"><span>© 2026 Nexo · Transport AI OS</span><span>Datos ficticios para demostración</span></footer>
+    </div>
+  </div>
+  <div id="modalRoot"></div><div id="toastRoot" class="toast-root" aria-live="polite"></div>
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>
