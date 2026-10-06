@@ -1,0 +1,10 @@
+{
+  "name": "Nexo Conductor",
+  "short_name": "Nexo",
+  "start_url": "/conductor",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#141c3a",
+  "icons": [{ "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" }]
+}

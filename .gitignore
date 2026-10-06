@@ -4,6 +4,7 @@ node_modules/
 # Environment files and credentials
 .env
 .env.*
+!frontend/.env.example
 secrets/
 .secrets/
 credentials/
@@ -40,6 +41,7 @@ temp/
 *.swp
 *.swo
 .cache/
+.pnpm-store/
 .vite/
 .parcel-cache/
 

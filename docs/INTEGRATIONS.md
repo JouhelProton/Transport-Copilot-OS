@@ -8,7 +8,9 @@ No se presupone API pública disponible. La demo acepta posiciones verificadas e
 
 ## Google Maps
 
-Maps Embed API representa la ubicación recibida por el backend y permite las vistas geográfica y satélite. Mantener la clave restringida por HTTP referrer y por API. Las coordenadas no deben considerarse reales si su origen es el simulador.
+El frontend React utiliza Maps JavaScript API para representar ubicaciones recibidas por la plataforma, rutas origen-destino y vistas geográfica y satélite. La configuración local vive en `frontend/.env` como `VITE_GOOGLE_MAPS_API_KEY`; el archivo está excluido de Git y `frontend/.env.example` documenta la variable. La clave llega al navegador por diseño, por lo que debe restringirse por HTTP referrer y limitarse exclusivamente a Maps JavaScript API. En local se debe autorizar `http://127.0.0.1:4176/*` y el puerto utilizado por Vite; en despliegue, solo el dominio real.
+
+Google Maps es únicamente la capa visual. Las coordenadas no deben considerarse reales si su origen es el simulador, y conectar el mapa no equivale a disponer de tracking GPS.
 
 ## Conectores futuros
 
