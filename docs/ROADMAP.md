@@ -1,34 +1,47 @@
 # Roadmap priorizado
 
-## Fase 0 — Preparación (este hito)
-- Demo arranca y rutas principales responden.
-- Documentar arquitectura actual/objetivo, entidades, contrato API, eventos, automatizaciones y seguridad.
-- Establecer frontera Frontend/Backend y registrar diferencias entre demo y producto.
+## Fase 0 — Preparación completada
 
-## Fase 1 — Fundaciones de producto
-- Acordar flujos reales, roles, estados, tenant, retención de datos y proveedor de identidad.
-- Elegir despliegue, PostgreSQL/ORM, almacenamiento privado y migraciones; diseñar threat model.
-- Implementar backend con organizaciones, usuarios/membresías, permisos, auditoría y tests de aislamiento.
-- Separar `Order` de `Service/Trip`; implementar pedidos, aceptación, asignación y estados en API versionada.
+- Repositorio canónico y documentación base.
+- Frontend de Lovable migrado a `/frontend`.
+- Demo Node anterior conservada como legacy.
+- Google Maps integrado como capa visual, sin atribuirle tracking real.
 
-## Fase 2 — MVP de ejecución
-- Integrar portales al API según `API_CONTRACT.md` y eliminar dependencia de fixtures como fuente de negocio.
-- Documentos privados, flujo DECA según requisitos legales confirmados, incidencias y comunicaciones.
-- Aplicación móvil/conductor para aceptación, eventos de viaje y POD con validación operacional.
+## Fase 1A — Primera vertical backend completada en `feat/backend-foundation`
+
+- Backend Node.js 24, TypeScript, Fastify, Prisma, PostgreSQL y Zod.
+- Organizaciones, usuarios, membresías/roles, clientes, pedidos, servicios, asignaciones, conductores y vehículos.
+- Eventos persistidos y auditoría transaccional.
+- Autenticación DEV sustituible, RBAC y aislamiento server-side.
+- Flujo cliente crea pedido → transportista acepta → servicio → asignación.
+- Frontend conectado únicamente para esta vertical.
+
+## Fase 1B — Siguiente paso recomendado
+
+- Sustituir autenticación DEV por proveedor de identidad, sesiones seguras y MFA para privilegios.
+- Añadir políticas PostgreSQL/RLS como segunda barrera de tenant.
+- Acordar despliegue, secretos, observabilidad, copias y restauración.
+- Añadir paginación, idempotencia y contrato OpenAPI antes de ampliar endpoints.
+
+## Fase 2 — Ejecución operativa
+
+- Aceptación real del conductor y estados del viaje.
+- Almacenamiento documental privado y DECA tras validar requisitos legales.
+- Incidencias, comentarios y comunicaciones auditables.
+- POD con evidencias y validación operacional.
 
 ## Fase 3 — Tracking y visibilidad
-- Confirmar permisos y documentación del proveedor GES/telemática; integrar adapter probado en sandbox.
-- Definir consentimiento, frecuencia, precisión y retención; persistir historial; mapa solo representa posiciones recibidas.
-- ETA, eventos de retraso y alertas medibles, con fuente de datos visible.
 
-## Fase 4 — Automatizaciones y cobro
-- Motor durable `EVENT → RULE → ACTION`, idempotencia, reintentos, bandeja de ejecución y aprobaciones.
-- Notificaciones auditables con preferencias y consentimiento.
-- Preparación de facturas; integrar proveedor/fiscalidad tras validar obligaciones y controles.
+- Integración oficial GES/telemática o app de conductor.
+- Historial de posiciones con consentimiento y retención.
+- ETA, detección de retrasos y alertas medibles.
 
-## Fase 5 — Integraciones y operación
-- Adaptadores ERP/TMS, email, almacenamiento, mensajería, IA y GES con sandbox, rotación de credenciales y monitorización.
-- Pruebas de carga, recuperación, observabilidad, seguridad y soporte antes de ampliar clientes.
+## Fase 4 — Automatización y facturación
+
+- Outbox, cola durable, workers e idempotencia.
+- Motor `EVENT → RULE → ACTION` con aprobaciones.
+- Preparación y emisión fiscal mediante proveedor validado.
 
 ## Condición de avance
-No tratar mapa o automatización demo como tracking o ejecución real. Cada hito de producto necesita criterios de aceptación, datos de prueba aislados, seguridad revisada y pruebas de contrato/integración pertinentes.
+
+La rama de esta fase no se fusiona automáticamente. Antes de producción se debe reemplazar la autenticación DEV y completar infraestructura, RLS, seguridad y operación. Los módulos marcados DEMO no deben recibir datos reales.

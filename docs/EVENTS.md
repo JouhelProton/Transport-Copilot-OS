@@ -5,7 +5,7 @@ Los eventos describen hechos persistidos, no órdenes futuras. Cada evento objet
 | Evento | Significado |
 |---|---|
 | `ORDER_CREATED` | Solicitud creada. |
-| `ORDER_APPROVED` | Pedido aprobado por persona/regla autorizada. |
+| `ORDER_ACCEPTED` | Pedido aceptado por la organización transportista. |
 | `DECA_CREATED` | DECA asociado creado/emitido. |
 | `SERVICE_CREATED` | Ejecución creada desde el pedido. |
 | `DRIVER_ASSIGNED` | Conductor asignado. |
@@ -24,7 +24,8 @@ Los eventos describen hechos persistidos, no órdenes futuras. Cada evento objet
 | `INVOICE_CREATED` | Factura/borrador creado según estado fiscal acordado. |
 
 ## Garantías
-- Los nombres del catálogo son objetivo. La demo actual usa otros: `ORDER.ACCEPTED`, `TRIP.ARRIVED`, `TRIP.DELIVERED`, `POD.UPLOADED`, `POD.VALIDATED`, `INVOICE.READY`, `INCIDENT.CREATED`.
+- El backend ya persiste `ORDER_CREATED`, `ORDER_ACCEPTED`, `SERVICE_CREATED`, `DRIVER_ASSIGNED` y `VEHICLE_ASSIGNED` junto al cambio de dominio y al registro de auditoría dentro de una transacción.
+- El resto del catálogo es objetivo y todavía no está implementado. La demo raíz conserva nombres heredados como `ORDER.ACCEPTED`, `TRIP.ARRIVED`, `TRIP.DELIVERED`, `POD.UPLOADED`, `POD.VALIDATED`, `INVOICE.READY` e `INCIDENT.CREATED`; no forman parte del contrato del backend nuevo.
 - “Listo para facturar” no significa factura emitida. Separar preparación, borrador, emisión fiscal y envío.
 - Persistir evento y cambio de dominio en una transacción; usar outbox para consumidores asíncronos.
 - Consumidores idempotentes, reintentables y monitorizados.

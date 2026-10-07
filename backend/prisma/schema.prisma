@@ -1,0 +1,274 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrganizationKind {
+  CARRIER
+  SHIPPER
+}
+
+enum Role {
+  SUPER_ADMIN
+  TRANSPORT_ADMIN
+  DISPATCHER
+  OPERATIONS
+  ACCOUNTING
+  DRIVER
+  CUSTOMER
+}
+
+enum OrderStatus {
+  SUBMITTED
+  ACCEPTED
+}
+
+enum ServiceStatus {
+  PLANNED
+  ASSIGNED
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  REPLACED
+}
+
+enum DriverStatus {
+  ACTIVE
+  RESTING
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  IN_SERVICE
+  MAINTENANCE
+}
+
+enum ServiceEventType {
+  ORDER_CREATED
+  ORDER_ACCEPTED
+  SERVICE_CREATED
+  DRIVER_ASSIGNED
+  VEHICLE_ASSIGNED
+}
+
+model Organization {
+  id                    String        @id
+  name                  String
+  kind                  OrganizationKind
+  memberships           Membership[]
+  customers             Customer[]   @relation("CarrierCustomers")
+  customerRepresentation Customer[]  @relation("CustomerOrganization")
+  ownedOrders           Order[]      @relation("OrderOwner")
+  carrierOrders         Order[]      @relation("OrderCarrier")
+  services              Service[]    @relation("ServiceCarrier")
+  customerServices      Service[]    @relation("ServiceCustomer")
+  drivers               Driver[]
+  vehicles              Vehicle[]
+  assignments           Assignment[]
+  events                ServiceEvent[]
+  auditLogs             AuditLog[]
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
+
+model User {
+  id          String       @id
+  email       String       @unique
+  name        String
+  memberships Membership[]
+  customer    Customer?
+  driver      Driver?
+  createdOrders Order[]    @relation("OrderCreator")
+  auditLogs   AuditLog[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           Role
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId, role])
+  @@index([userId, organizationId])
+}
+
+model Customer {
+  id                     String       @id
+  organizationId         String
+  customerOrganizationId String
+  userId                 String?      @unique
+  name                   String
+  contact                 String
+  organization           Organization @relation("CarrierCustomers", fields: [organizationId], references: [id], onDelete: Restrict)
+  customerOrganization   Organization @relation("CustomerOrganization", fields: [customerOrganizationId], references: [id], onDelete: Restrict)
+  user                   User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orders                 Order[]
+  services               Service[]
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  @@unique([organizationId, customerOrganizationId])
+  @@index([customerOrganizationId])
+}
+
+model Order {
+  id                    String       @id @default(cuid())
+  organizationId        String
+  carrierOrganizationId String
+  customerId            String
+  createdByUserId       String
+  reference             String
+  originName            String
+  originAddress         String
+  originLat             Decimal      @db.Decimal(9, 6)
+  originLng             Decimal      @db.Decimal(9, 6)
+  destinationName       String
+  destinationAddress    String
+  destinationLat        Decimal      @db.Decimal(9, 6)
+  destinationLng        Decimal      @db.Decimal(9, 6)
+  cargo                  String
+  pallets                Int
+  tempMin                Decimal?     @db.Decimal(5, 2)
+  tempMax                Decimal?     @db.Decimal(5, 2)
+  plannedPickup          DateTime
+  plannedDelivery        DateTime
+  status                 OrderStatus  @default(SUBMITTED)
+  acceptedAt             DateTime?
+  organization          Organization @relation("OrderOwner", fields: [organizationId], references: [id], onDelete: Restrict)
+  carrierOrganization   Organization @relation("OrderCarrier", fields: [carrierOrganizationId], references: [id], onDelete: Restrict)
+  customer              Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy             User         @relation("OrderCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  service               Service?
+  events                ServiceEvent[]
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@unique([organizationId, reference])
+  @@index([carrierOrganizationId, status])
+  @@index([customerId, createdAt])
+}
+
+model Service {
+  id                     String        @id @default(cuid())
+  organizationId         String
+  customerOrganizationId String
+  customerId             String
+  orderId                 String        @unique
+  status                  ServiceStatus @default(PLANNED)
+  organization            Organization  @relation("ServiceCarrier", fields: [organizationId], references: [id], onDelete: Restrict)
+  customerOrganization    Organization  @relation("ServiceCustomer", fields: [customerOrganizationId], references: [id], onDelete: Restrict)
+  customer                Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  order                   Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  assignments             Assignment[]
+  events                  ServiceEvent[]
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([organizationId, status])
+  @@index([customerOrganizationId, createdAt])
+}
+
+model Driver {
+  id             String       @id
+  organizationId String
+  userId         String?      @unique
+  name           String
+  phone          String
+  license        String
+  status         DriverStatus @default(ACTIVE)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  assignments    Assignment[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, status])
+}
+
+model Vehicle {
+  id             String        @id
+  organizationId String
+  plate          String
+  type           String
+  reefer         Boolean       @default(false)
+  status         VehicleStatus @default(AVAILABLE)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  assignments    Assignment[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([organizationId, plate])
+  @@index([organizationId, status])
+}
+
+model Assignment {
+  id               String           @id @default(cuid())
+  organizationId   String
+  serviceId        String
+  driverId         String
+  vehicleId        String
+  status           AssignmentStatus @default(ACTIVE)
+  assignedByUserId String
+  assignedAt       DateTime         @default(now())
+  endedAt          DateTime?
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service          Service          @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  driver           Driver           @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  vehicle          Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, serviceId, status])
+  @@index([driverId, status])
+  @@index([vehicleId, status])
+}
+
+model ServiceEvent {
+  id             String           @id @default(cuid())
+  organizationId String
+  serviceId      String?
+  orderId        String?
+  type           ServiceEventType
+  entityType     String
+  entityId       String
+  actorUserId    String?
+  correlationId  String
+  schemaVersion  Int              @default(1)
+  payload        Json
+  occurredAt     DateTime         @default(now())
+  recordedAt     DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service        Service?         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  order          Order?           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, occurredAt])
+  @@index([serviceId, occurredAt])
+  @@index([orderId, occurredAt])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String
+  outcome        String       @default("SUCCESS")
+  requestId      String
+  metadata       Json
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor          User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+}

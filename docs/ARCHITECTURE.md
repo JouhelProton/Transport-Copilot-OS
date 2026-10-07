@@ -1,40 +1,70 @@
 # Arquitectura del producto
 
 ## Objetivo
-Transport Copilot OS conecta cliente, transportista y conductor en un flujo operativo compartido: pedido → preparación documental/DECA → servicio → asignación → ejecución → seguimiento → incidencias → POD → facturación. Principio: **el operador decide; el sistema ejecuta las acciones autorizadas y deja trazabilidad**.
 
-## Estado actual de este repositorio
-Este repositorio es una demo local independiente, no el código fuente del proyecto Lovable preview. Usa HTML, CSS y JavaScript ES modules sin framework de interfaz ni dependencias declaradas. `server.mjs` usa módulos nativos de Node.js, sirve las vistas y actúa como backend de demostración. No hay ORM, base de datos transaccional, autenticación ni API productiva.
+Transport Copilot OS conecta cliente, transportista y conductor en un flujo operativo compartido. El principio de producto es: **el operador decide; el sistema ejecuta las acciones autorizadas y deja trazabilidad**.
 
-- `/` e `index.html`: portal cliente (`src/clientPortal.js`, `src/portalData.js`).
-- `/transporter.html`: panel de operaciones (`src/app.js`, `src/data.js`).
-- `/driver.html`: interfaz móvil del conductor (`src/driver.js`, `driver-sw.js`, `driver.webmanifest`).
-- `server.mjs`: archivos estáticos, workflow compartido, tracking y configuración de integraciones de demo.
-- `.local-data/`: persistencia JSON local fuera del control de versiones para workflow y datos recibidos de tracking.
-- `docs/`: documentación de integraciones, tracking e IA, además de estos contratos.
+## Estructura actual
 
-El estado compartido NV-24081 se guarda en JSON; otras pantallas usan datos JavaScript ficticios en memoria. La PWA no implementa GPS real ni sincronización en segundo plano. El tracking puede mostrar posición fija de demo, lectura del webhook de correo o consulta HTTP configurada; no se asume que GES tenga una API accesible. Google Maps Embed dibuja coordenadas recibidas, no obtiene la posición.
-
-## Arquitectura objetivo
 ```text
-Portales web cliente / operaciones / conductor
-                    ↓ HTTPS, API versionada y autorización
-API (validación, autenticación, RBAC y contexto de organización)
-                    ↓
-Servicios de dominio y lógica de negocio
-       ↙ eventos / reglas / adaptadores ↘
-PostgreSQL + almacenamiento de documentos + cola durable
-                    ↓
-   GES/telemática · email · ERP · mensajería · facturación
+/frontend  React 19 + TanStack Start/Vite; frontend migrado de Lovable
+/backend   Node.js 24 + TypeScript + Fastify + Prisma + PostgreSQL
+/docs      contratos, arquitectura, seguridad y roadmap
+/          demo Node/HTML/JavaScript anterior, conservada como legacy
 ```
-El backend será la fuente de verdad. Los adaptadores normalizan formatos y no escriben directamente en datos de dominio. Los eventos se registran con la mutación; las acciones asíncronas son idempotentes, reintentables y auditables.
 
-## Módulos de dominio
-Auth, Organizations, Customers, Orders, DECA, Services/Trips, Assignments, Drivers, Vehicles, Tracking, ETA, Documents, POD, Incidents, Messages, Notifications, Automation, Billing, Integrations y Audit. `Order` representa lo solicitado; `Service/Trip` representa la ejecución. Un pedido podrá originar uno o más servicios según reglas de negocio.
+`/backend` es la fuente de verdad de la primera vertical real:
 
-## Trabajo paralelo
-- **Frontend:** React/UI, componentes, UX, páginas, estado de interfaz, formularios y cliente API.
-- **Backend:** API, persistencia, auth, RBAC/RLS, reglas de dominio, eventos, automatización e integraciones.
-- **Frontera compartida:** `API_CONTRACT.md`. Documentar incompatibilidades y coordinarlas antes de editar ambas partes.
+```text
+cliente crea Order
+  → PostgreSQL
+  → transportista consulta y acepta
+  → se crea Service
+  → se crea Assignment con Driver y Vehicle
+  → eventos y auditoría en la misma transacción
+  → ambos portales consultan el nuevo estado
+```
 
-La migración a la arquitectura objetivo es futura; PostgreSQL, GPS, integración GES, facturación y autenticación reales no existen hoy en esta demo.
+El frontend conserva los componentes y la navegación de Lovable. Solo pedidos, servicios, conductores, vehículos y asignaciones consumen el API real. Tracking, mapas como fuente de posición, incidencias, documentos, POD, facturas, mensajería y automatizaciones siguen siendo DEMO.
+
+La aplicación raíz (`server.mjs`, HTML y `src/`) sigue disponible como referencia legacy. Su JSON local y endpoints `/api/workflow`, `/api/tracking` y `/api/integrations` no forman parte del backend productivo.
+
+## Backend
+
+```text
+backend/
+  src/
+    app/                 composición Fastify y errores
+    config/              entorno validado con Zod
+    generated/prisma/    cliente generado, no versionado
+    modules/
+      auth/              autenticación DEV, RBAC y contexto de tenant
+      orders/            creación, lectura y aceptación
+      services/          lectura y asignaciones
+      resources/         conductores y vehículos
+    plugins/             Prisma/PostgreSQL
+    shared/              errores y presenters del API
+  prisma/
+    schema.prisma
+    migrations/
+    seed.ts
+  tests/                 integración de la vertical y aislamiento
+```
+
+Las mutaciones compuestas usan transacciones Prisma. El cambio de dominio, `ServiceEvent` y `AuditLog` se escriben juntos. No existe todavía cola/outbox ni trabajadores asíncronos.
+
+## Identidad y tenant
+
+La capa DEV usa `x-dev-user-id` y `x-organization-id`. El servidor valida que exista una `Membership` para esa combinación y obtiene el rol desde PostgreSQL. Las cabeceras nunca conceden un rol ni una membresía inexistentes. Esta capa permite probar RBAC y aislamiento, pero debe sustituirse por un proveedor de identidad antes de producción.
+
+`Order.organizationId` identifica a la organización cliente propietaria del pedido y `carrierOrganizationId` al transportista destinatario. `Service.organizationId` identifica al transportista ejecutor y `customerOrganizationId` al cliente participante. Solo esos participantes explícitos acceden al recurso; un tercer tenant recibe `404`.
+
+## Ejecución local
+
+1. Copiar `backend/.env.example` a `backend/.env`.
+2. Ejecutar `docker compose -f backend/docker-compose.yml up -d --wait`.
+3. En `/backend`: generar Prisma, aplicar migraciones y ejecutar el seed.
+4. Iniciar el backend en `127.0.0.1:3001`.
+5. Configurar `VITE_API_BASE_URL=http://127.0.0.1:3001` en `frontend/.env` e iniciar `/frontend`.
+
+Node.js 24 es obligatorio para el backend. PostgreSQL solo se publica en `127.0.0.1:5434` durante desarrollo local.

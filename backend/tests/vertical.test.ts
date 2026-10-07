@@ -1,0 +1,177 @@
+import "dotenv/config";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildApp } from "../src/app/build-app.js";
+import { loadConfig } from "../src/config/env.js";
+import { createPrismaClient } from "../src/plugins/prisma.js";
+
+const config = loadConfig({ ...process.env, NODE_ENV: "test" });
+const database = createPrismaClient(config.DATABASE_URL);
+const app = await buildApp(config, database);
+
+const customerHeaders = {
+  "x-dev-user-id": "u_cust",
+  "x-organization-id": "org_nova",
+};
+const carrierHeaders = {
+  "x-dev-user-id": "u_admin",
+  "x-organization-id": "org_tvd",
+};
+const otherHeaders = {
+  "x-dev-user-id": "u_other",
+  "x-organization-id": "org_other",
+};
+let createdOrderId = "";
+let createdServiceId = "";
+
+beforeAll(async () => {
+  await app.ready();
+});
+
+afterAll(async () => {
+  if (createdServiceId) {
+    await database.auditLog.deleteMany({
+      where: { entityId: { in: [createdOrderId, createdServiceId] } },
+    });
+    await database.serviceEvent.deleteMany({
+      where: {
+        OR: [{ orderId: createdOrderId }, { serviceId: createdServiceId }],
+      },
+    });
+    await database.assignment.deleteMany({
+      where: { serviceId: createdServiceId },
+    });
+    await database.service.deleteMany({ where: { id: createdServiceId } });
+  }
+  if (createdOrderId) {
+    await database.auditLog.deleteMany({ where: { entityId: createdOrderId } });
+    await database.serviceEvent.deleteMany({
+      where: { orderId: createdOrderId },
+    });
+    await database.order.deleteMany({ where: { id: createdOrderId } });
+  }
+  await app.close();
+  await database.$disconnect();
+});
+
+describe("vertical pedido → servicio → asignación", () => {
+  it("responde al health check", async () => {
+    const response = await app.inject({ method: "GET", url: "/health" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "ok" });
+  });
+
+  it("ejecuta el flujo completo y mantiene el aislamiento multi-tenant", async () => {
+    const suffix = Date.now().toString(36);
+    const pickup = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const delivery = new Date(pickup.getTime() + 8 * 60 * 60 * 1000);
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/orders",
+      headers: customerHeaders,
+      payload: {
+        carrierOrganizationId: "org_tvd",
+        reference: `TEST-${suffix}`,
+        origin: {
+          name: "Valencia",
+          address: "Puerto de Valencia",
+          lat: 39.4699,
+          lng: -0.3763,
+        },
+        destination: {
+          name: "Madrid",
+          address: "Getafe",
+          lat: 40.3057,
+          lng: -3.7329,
+        },
+        cargo: "Carga de prueba",
+        pallets: 12,
+        plannedPickup: pickup.toISOString(),
+        plannedDelivery: delivery.toISOString(),
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    createdOrderId = created.json().data.id;
+
+    const carrierOrders = await app.inject({
+      method: "GET",
+      url: "/api/v1/orders",
+      headers: carrierHeaders,
+    });
+    expect(carrierOrders.statusCode).toBe(200);
+    expect(
+      carrierOrders
+        .json()
+        .data.some((order: { id: string }) => order.id === createdOrderId),
+    ).toBe(true);
+
+    const hiddenFromOtherTenant = await app.inject({
+      method: "GET",
+      url: `/api/v1/orders/${createdOrderId}`,
+      headers: otherHeaders,
+    });
+    expect(hiddenFromOtherTenant.statusCode).toBe(404);
+
+    const accepted = await app.inject({
+      method: "POST",
+      url: `/api/v1/orders/${createdOrderId}/accept`,
+      headers: carrierHeaders,
+    });
+    expect(accepted.statusCode).toBe(201);
+    createdServiceId = accepted.json().data.id;
+    expect(accepted.json().data.status).toBe("PLANNED");
+
+    const assigned = await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${createdServiceId}/assign`,
+      headers: carrierHeaders,
+      payload: { driverId: "drv_ana", vehicleId: "veh_9012" },
+    });
+    expect(assigned.statusCode).toBe(200);
+    expect(assigned.json().data).toMatchObject({
+      status: "ASSIGNED",
+      assignment: { driverId: "drv_ana", vehicleId: "veh_9012" },
+    });
+
+    const customerOrder = await app.inject({
+      method: "GET",
+      url: `/api/v1/orders/${createdOrderId}`,
+      headers: customerHeaders,
+    });
+    expect(customerOrder.statusCode).toBe(200);
+    expect(customerOrder.json().data.service).toMatchObject({
+      id: createdServiceId,
+      status: "ASSIGNED",
+    });
+
+    const hiddenService = await app.inject({
+      method: "GET",
+      url: `/api/v1/services/${createdServiceId}`,
+      headers: otherHeaders,
+    });
+    expect(hiddenService.statusCode).toBe(404);
+
+    const eventTypes = await database.serviceEvent.findMany({
+      where: { serviceId: createdServiceId },
+      select: { type: true },
+    });
+    expect(eventTypes.map((event) => event.type)).toEqual(
+      expect.arrayContaining([
+        "ORDER_ACCEPTED",
+        "SERVICE_CREATED",
+        "DRIVER_ASSIGNED",
+        "VEHICLE_ASSIGNED",
+      ]),
+    );
+    const audit = await database.auditLog.findMany({
+      where: { entityId: { in: [createdOrderId, createdServiceId] } },
+    });
+    expect(audit.map((entry) => entry.action)).toEqual(
+      expect.arrayContaining([
+        "ORDER_CREATED",
+        "ORDER_ACCEPTED",
+        "SERVICE_ASSIGNED",
+      ]),
+    );
+  });
+});

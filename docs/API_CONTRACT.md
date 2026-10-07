@@ -1,42 +1,66 @@
-# Contrato conceptual de API
-
-Frontera entre frontend y backend. Especificación inicial, **no implica que los endpoints objetivo existan**. La API local `/api/workflow`, `/api/tracking` y `/api/integrations` no cumple aún este contrato productivo.
+# Contrato API v1
 
 ## Convenciones
-- Base `/api/v1`, HTTPS, JSON UTF-8, fechas RFC 3339 UTC e importes decimales con moneda.
-- Sesión/bearer gestionada por backend. Cada petición aplica rol, organización y permisos.
+
+- Base: `/api/v1`; `GET /health` queda fuera de la versión.
+- JSON UTF-8 y fechas RFC 3339 UTC.
 - Error: `{ "error": { "code": "...", "message": "...", "details": [], "requestId": "..." } }`.
-- Listas paginadas, filtros con allowlist; validar mutaciones y usar `Idempotency-Key` en operaciones reintentables.
-- Nunca aceptar actor, rol u organización del body como fuente de autoridad.
+- Validación de entrada con Zod y autorización de rol/tenant en servidor.
+- La autenticación DEV requiere `x-dev-user-id` y `x-organization-id`. Es reemplazable y no es apta para Internet.
 
-## Endpoints objetivo
-| Método / ruta | Uso y permiso |
-|---|---|
-| `GET /me` | Perfil, membresías y roles propios. |
-| `GET /orders`; `POST /orders`; `GET /orders/{id}` | Listar, crear y consultar pedidos accesibles. |
-| `POST /orders/{id}/approve` | Aprobar según rol/regla. |
-| `POST /orders/{id}/services` | Crear ejecución de pedido aprobado. |
-| `GET /services`; `GET /services/{id}` | Listado y detalle autorizado. |
-| `POST /services/{id}/assignments` | Asignar transportista/vehículo/conductor. |
-| `POST /services/{id}/acceptance` | Aceptar/rechazar asignación. |
-| `POST /services/{id}/start` | Iniciar viaje. |
-| `GET /services/{id}/tracking` | Última posición/historial compartible. |
-| `POST /services/{id}/locations` | Ingesta autenticada de proveedor/app. |
-| `GET/POST /services/{id}/documents` | Listar y registrar metadatos/subida segura. |
-| `POST /services/{id}/pod`; `POST /services/{id}/pod/validate` | Registrar y validar evidencia POD. |
-| `GET/POST /services/{id}/incidents` | Listar o crear incidencia/no conformidad. |
-| `POST /services/{id}/invoices` | Crear borrador conforme a permisos y validaciones. |
-| `GET /invoices`; `GET /invoices/{id}` | Consultar facturas autorizadas. |
-| `GET /services/{id}/events` | Timeline filtrado por rol/visibilidad. |
-| `GET /notifications` | Notificaciones del usuario. |
+## Endpoints implementados
 
-URLs de descarga deben ser breves y autorizadas. Webhooks con firma/mecanismo oficial, timestamp, replay protection e idempotencia. No filtrar costes internos ni datos personales por rol cliente/conductor.
+| Método y ruta                      | Roles / alcance                                          | Resultado                                                            |
+| ---------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET /health`                      | Público                                                  | Estado del proceso.                                                  |
+| `POST /api/v1/orders`              | `CUSTOMER` o roles internos                              | Crea `Order`, `ORDER_CREATED` y auditoría.                           |
+| `GET /api/v1/orders`               | Cliente participante o transportista destinatario        | Lista aislada por tenant y relación.                                 |
+| `GET /api/v1/orders/:id`           | Igual que lista                                          | Detalle autorizado; `404` para terceros.                             |
+| `POST /api/v1/orders/:id/accept`   | Admin, tráfico u operaciones del transportista           | Acepta pedido y crea `Service` de forma transaccional.               |
+| `GET /api/v1/services`             | Cliente participante, transportista o conductor asignado | Lista de servicios autorizados.                                      |
+| `GET /api/v1/services/:id`         | Igual que lista                                          | Detalle, asignación y eventos.                                       |
+| `POST /api/v1/services/:id/assign` | Admin o tráfico del transportista                        | Crea/reemplaza `Assignment`; valida conductor y vehículo del tenant. |
+| `GET /api/v1/drivers`              | Roles internos del transportista                         | Conductores de la organización actual.                               |
+| `GET /api/v1/vehicles`             | Roles internos del transportista                         | Vehículos de la organización actual.                                 |
 
-## API que existe en demo local
-- `GET/POST /api/workflow/{tripId}`: un único workflow de demo; sin autenticación/autorización.
-- `GET /api/tracking/{shipmentId}`: ubicación de demo o proveedor configurado.
-- `GET /api/integrations/gestracking`: estado/configuración resumida.
-- `POST /api/integrations/gestracking/email`: webhook demo con secreto compartido para evento normalizado.
-- `GET /api/integrations/maps`: devuelve al navegador la clave de Maps Embed configurada; restringir por referrer/API.
+## Crear pedido
 
-El workflow altera JSON local y no debe exponerse a Internet ni usarse con datos reales. Rutas de negocio objetivo pendientes.
+```json
+{
+  "carrierOrganizationId": "org_tvd",
+  "reference": "CLI-2026-001",
+  "origin": {
+    "name": "Valencia",
+    "address": "Puerto",
+    "lat": 39.4699,
+    "lng": -0.3763
+  },
+  "destination": {
+    "name": "Madrid",
+    "address": "Getafe",
+    "lat": 40.3057,
+    "lng": -3.7329
+  },
+  "cargo": "Alimentación",
+  "pallets": 24,
+  "plannedPickup": "2026-10-08T08:00:00.000Z",
+  "plannedDelivery": "2026-10-08T16:00:00.000Z"
+}
+```
+
+Un usuario `CUSTOMER` no puede elegir arbitrariamente `customerId`: el backend lo deriva de su usuario y de la relación comercial con el transportista.
+
+## Asignar servicio
+
+```json
+{
+  "driverId": "drv_ana",
+  "vehicleId": "veh_9012"
+}
+```
+
+Conductor, vehículo y servicio deben pertenecer al mismo transportista. La reasignación conserva el historial marcando la asignación anterior como `REPLACED`.
+
+## Fuera de esta versión
+
+GPS/GES, ETA, DECA legal, documentos, POD, facturación, incidencias, mensajería, notificaciones y automatizaciones no tienen todavía endpoints productivos. Los endpoints legacy de la raíz no pertenecen a `/api/v1`.

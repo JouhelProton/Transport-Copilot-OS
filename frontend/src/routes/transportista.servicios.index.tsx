@@ -1,43 +1,129 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Search } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EmptyState, PageHeader, Panel, StatusBadge } from "@/components/nexo/ui";
-import { useCarrierServices } from "@/lib/auth/use-portal";
+import { ApiStatus } from "@/components/nexo/ApiStatus";
+import { EmptyState, PageHeader, Panel } from "@/components/nexo/ui";
+import { usePortalSession } from "@/lib/auth/use-portal";
+import { useAcceptOrder, useApiOrders, useApiServices } from "@/lib/api/operations";
 import { fmtTime } from "@/lib/domain/projections";
-import { STATUS_LABEL, type ServiceStatus } from "@/lib/domain/types";
 
-export const Route = createFileRoute("/transportista/servicios/")({ component: Page });
-function Page() {
-  const services = useCarrierServices();
-  const [q, setQ] = useState("");
-  const [st, setSt] = useState<"" | ServiceStatus>("");
-  const list = services.filter((s) => (!st || s.status === st) && `${s.id} ${s.customerRef} ${s.cargo} ${s.origin.name} ${s.destination.name}`.toLowerCase().includes(q.toLowerCase()));
+export const Route = createFileRoute("/transportista/servicios/")({
+  component: CarrierServicesPage,
+});
+
+function CarrierServicesPage() {
+  const session = usePortalSession();
+  const orders = useApiOrders(session);
+  const services = useApiServices(session);
+  const accept = useAcceptOrder(session);
+  const [query, setQuery] = useState("");
+  const pending = orders.data?.filter((order) => order.status === "SUBMITTED") ?? [];
+  const filtered = (services.data ?? []).filter((service) =>
+    `${service.id} ${service.reference} ${service.cargo} ${service.origin.name} ${service.destination.name}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+
+  const acceptOrder = (orderId: string) => {
+    accept.mutate(orderId, {
+      onSuccess: () => toast.success("Pedido aceptado y servicio creado"),
+      onError: (error) => toast.error(error.message),
+    });
+  };
+
   return (
-    <div>
-      <PageHeader title="Pedidos y servicios" subtitle="Busca y filtra · datos DEMO" />
-      <div className="mb-4 flex flex-wrap gap-3">
-        <div className="relative min-w-60 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por ID, referencia, mercancía, ciudad…" className="h-10 pl-9" aria-label="Buscar" /></div>
-        <select value={st} onChange={(e) => setSt(e.target.value as ServiceStatus | "")} className="h-10 rounded-lg border bg-card px-3 text-sm" aria-label="Filtrar por estado">
-          <option value="">Todos los estados</option>{Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+    <div className="space-y-5">
+      <PageHeader
+        title="Pedidos y servicios"
+        subtitle="Vertical conectada al backend · PostgreSQL"
+      />
+      <Panel title={`Pedidos pendientes (${pending.length})`}>
+        {orders.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {orders.error.message}
+          </p>
+        ) : pending.length ? (
+          <ul className="divide-y text-sm">
+            {pending.map((order) => (
+              <li key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <span>
+                  <strong>{order.reference}</strong> · {order.customerName} · {order.origin.name} →{" "}
+                  {order.destination.name}
+                </span>
+                <Button size="sm" onClick={() => acceptOrder(order.id)} disabled={accept.isPending}>
+                  Aceptar y crear servicio
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">No hay pedidos pendientes.</p>
+        )}
+      </Panel>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Buscar por ID, referencia, mercancía o ciudad…"
+          className="h-10 pl-9"
+          aria-label="Buscar"
+        />
       </div>
-      {list.length ? (
+      {services.isPending ? (
+        <p className="text-sm text-muted-foreground">Cargando servicios…</p>
+      ) : services.isError ? (
+        <p role="alert" className="text-sm text-destructive">
+          {services.error.message}. Comprueba que el backend esté iniciado.
+        </p>
+      ) : filtered.length ? (
         <Panel className="overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="bg-muted text-left text-muted-foreground"><tr>{["ID", "Ref. cliente", "Ruta", "Mercancía", "ETA", "Estado"].map((h) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
-            <tbody className="divide-y">{list.map((s) => (
-              <tr key={s.id} className="hover:bg-muted/50">
-                <td className="px-4 py-3"><Link to="/transportista/servicios/$id" params={{ id: s.id }} className="font-semibold text-primary">{s.id}</Link></td>
-                <td className="px-4 py-3">{s.customerRef}</td>
-                <td className="px-4 py-3">{s.origin.name.split(" —")[0]} → {s.destination.name.split(" —")[0]}</td>
-                <td className="px-4 py-3">{s.cargo} · {s.pallets} pal.</td>
-                <td className="px-4 py-3">{fmtTime(s.eta ?? s.plannedDelivery)}</td>
-                <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
-              </tr>))}</tbody>
+            <thead className="bg-muted text-left text-muted-foreground">
+              <tr>
+                {["Servicio", "Ref. cliente", "Ruta", "Mercancía", "Entrega", "Estado"].map(
+                  (heading) => (
+                    <th key={heading} className="px-4 py-3 font-medium">
+                      {heading}
+                    </th>
+                  ),
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filtered.map((service) => (
+                <tr key={service.id} className="hover:bg-muted/50">
+                  <td className="px-4 py-3">
+                    <Link
+                      to="/transportista/servicios/$id"
+                      params={{ id: service.id }}
+                      className="font-semibold text-primary"
+                    >
+                      {service.id}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">{service.reference}</td>
+                  <td className="px-4 py-3">
+                    {service.origin.name} → {service.destination.name}
+                  </td>
+                  <td className="px-4 py-3">
+                    {service.cargo} · {service.pallets} pal.
+                  </td>
+                  <td className="px-4 py-3">{fmtTime(service.plannedDelivery)}</td>
+                  <td className="px-4 py-3">
+                    <ApiStatus status={service.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </Panel>
-      ) : <EmptyState title="Sin resultados" text="Prueba con otra búsqueda o filtro." />}
+      ) : (
+        <EmptyState title="Sin servicios" text="Acepta un pedido para crear el primer servicio." />
+      )}
     </div>
   );
 }
