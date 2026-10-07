@@ -1,5 +1,7 @@
 # Desarrollo iOS e instalación en iPhone
 
+> **DEPRECATED para Driver App:** esta guía describe el contenedor Capacitor anterior. La arquitectura móvil candidata es Expo; usa `docs/EXPO_DRIVER_APP.md`. Se conserva temporalmente como referencia.
+
 ## Estado y requisitos
 
 El proyecto SPM está generado en `frontend/ios/App/App.xcodeproj`, con bundle id temporal `com.transportcopilot.driver`, nombre `Transport Copilot Driver` y deployment target iOS 15. La generación y sincronización estática se hizo en Windows. Compilar, firmar e instalar iOS requiere un Mac con macOS, Xcode 26 o superior para Capacitor 8, Xcode Command Line Tools y un iPhone compatible.

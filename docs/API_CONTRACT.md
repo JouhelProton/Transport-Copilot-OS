@@ -7,7 +7,7 @@
 - Error: `{ "error": { "code": "...", "message": "...", "details": [], "requestId": "..." } }`.
 - Validación de entrada con Zod y autorización de rol/tenant en servidor.
 - La autenticación web usa la cookie de sesión `HttpOnly`; el frontend envía peticiones con credenciales incluidas.
-- La app Capacitor usa el mismo token opaco mediante `Authorization: Bearer`; solo `mobile-login` entrega el secreto y `/auth/me` nunca lo devuelve.
+- La Driver App Expo usa el mismo token opaco mediante `Authorization: Bearer`; solo `mobile-login` entrega el secreto y `/auth/me` nunca lo devuelve.
 - La organización activa procede de la `Membership` guardada en la sesión. Los headers DEV se ignoran.
 - Mutaciones desde navegador deben proceder del origen permitido; la cookie usa `SameSite=Lax` y `Secure` en producción.
 

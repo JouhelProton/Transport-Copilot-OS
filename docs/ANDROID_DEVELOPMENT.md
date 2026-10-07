@@ -1,5 +1,7 @@
 # Desarrollo Android
 
+> **DEPRECATED para Driver App:** esta guía describe el contenedor Capacitor anterior. La arquitectura móvil candidata es Expo; usa `docs/EXPO_DRIVER_APP.md`. Se conserva temporalmente como referencia.
+
 ## Estado y requisitos
 
 El proyecto está en `frontend/android`, con package id `com.transportcopilot.driver`, min SDK 24 y target/compile SDK 36. Solo declara `android.permission.INTERNET`. No hay permisos de ubicación, cámara, fotos o notificaciones.

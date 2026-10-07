@@ -7,6 +7,7 @@ node_modules/
 !frontend/.env.example
 !frontend/.env.mobile.example
 !backend/.env.example
+!mobile/.env.example
 secrets/
 .secrets/
 credentials/
@@ -55,6 +56,7 @@ out/
 .next/
 coverage/
 .iphone-preview.json
+.expo-driver-preview.json
 .nyc_output/
 
 # Operating system files

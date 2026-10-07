@@ -7,7 +7,8 @@ Transport Copilot OS conecta cliente, transportista y conductor en un flujo oper
 ## Estructura actual
 
 ```text
-/frontend  React 19 + TanStack Start/Vite + Capacitor 8; web, iOS y Android
+/frontend  React 19 + TanStack Start/Vite; portales web de cliente y transportista
+/mobile    React Native + Expo SDK 57; Driver App iOS/Android
 /backend   Node.js 24 + TypeScript + Fastify + Prisma + PostgreSQL
 /docs      contratos, arquitectura, seguridad y roadmap
 /          demo Node/HTML/JavaScript anterior, conservada como legacy
@@ -29,7 +30,7 @@ cliente crea Order
 
 El frontend conserva los componentes y la navegación de Lovable. Pedidos, servicios, conductores, vehículos, asignaciones y aceptación del conductor consumen el API real. Tracking, mapas como fuente de posición, incidencias, documentos, POD, facturas, mensajería y automatizaciones siguen siendo DEMO.
 
-`/conductor` es una interfaz mobile-first compartida por web y la Driver App. Capacitor usa un build SPA de la misma base React; `frontend/ios` y `frontend/android` son contenedores nativos versionados. `PlatformService`, `AuthTransport` y la capa de conectividad centralizan las diferencias de plataforma. La superficie nativa bloquea en el router cualquier ruta fuera de `/conductor` y `/login/conductor`; la autorización definitiva permanece en el backend.
+`/mobile` contiene la Driver App exclusiva creada con componentes React Native y Expo Router. Consume directamente los endpoints `/api/v1/driver/*`, guarda la sesión opaca en SecureStore y no contiene rutas de cliente, transportista o admin. La autorización definitiva permanece en el backend. La implementación Capacitor previa se conserva como referencia y queda deprecada para Driver App mientras se completa la validación física de Expo.
 
 La aplicación raíz (`server.mjs`, HTML y `src/`) sigue disponible como referencia legacy. Su JSON local y endpoints `/api/workflow`, `/api/tracking` y `/api/integrations` no forman parte del backend productivo.
 
@@ -64,7 +65,7 @@ Las mutaciones compuestas usan transacciones Prisma. El cambio de dominio, `Serv
 
 La organización y el rol se derivan siempre de `Session.currentMembershipId`. Cambiar de organización requiere seleccionar una membership perteneciente al usuario. Las antiguas cabeceras `x-dev-user-id` y `x-organization-id` ya no participan en la autenticación. RBAC se centraliza en permisos como `orders:create`, `orders:accept` y `services:assign`.
 
-El navegador usa cookie `HttpOnly`. La Driver App usa el mismo token opaco de `Session` como Bearer porque el WebView y el API remoto no comparten un contexto same-site fiable para la cookie actual. El token móvil se guarda únicamente en Keychain/Android Keystore mediante el adaptador de almacenamiento seguro; PostgreSQL conserva solo su hash. Expiración, revocación, organización activa y RBAC son comunes.
+El navegador usa cookie `HttpOnly`. La Driver App Expo usa el mismo token opaco de `Session` como Bearer. El token móvil se guarda únicamente en Keychain/Android Keystore mediante `expo-secure-store`; PostgreSQL conserva solo su hash. Expiración, revocación, organización activa y RBAC son comunes.
 
 `Order.organizationId` identifica a la organización cliente propietaria del pedido y `carrierOrganizationId` al transportista destinatario. `Service.organizationId` identifica al transportista ejecutor y `customerOrganizationId` al cliente participante. Solo esos participantes explícitos acceden al recurso; un tercer tenant recibe `404`.
 

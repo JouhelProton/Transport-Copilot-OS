@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Transport Copilot Driver",
+    "slug": "transport-copilot-driver",
+    "version": "0.3.5",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "transportcopilot",
+    "userInterfaceStyle": "light",
+    "primaryColor": "#3157D5",
+    "ios": {
+      "bundleIdentifier": "com.transportcopilot.driver",
+      "supportsTablet": false,
+      "icon": "./assets/expo.icon"
+    },
+    "android": {
+      "package": "com.transportcopilot.driver",
+      "adaptiveIcon": {
+        "backgroundColor": "#EAF0FF",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#141C3A",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

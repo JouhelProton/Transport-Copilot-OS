@@ -10,6 +10,8 @@
     "dev": "node server.mjs",
     "start": "node server.mjs",
     "iphone:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-cloudflared.ps1",
-    "iphone:dev": "node scripts/iphone-dev.mjs"
+    "iphone:dev": "node scripts/iphone-dev.mjs",
+    "mobile:dev": "node scripts/expo-driver-dev.mjs",
+    "mobile:dev:tunnel": "node scripts/expo-driver-dev.mjs --tunnel"
   }
 }

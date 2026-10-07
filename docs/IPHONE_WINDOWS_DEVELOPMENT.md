@@ -1,5 +1,7 @@
 # Probar Transport Copilot Driver en iPhone desde Windows
 
+> **LEGACY PWA:** esta guía conserva el preview Safari/Capacitor anterior. Para la Driver App React Native oficial candidata y Expo Go usa `docs/EXPO_DRIVER_APP.md` y `pnpm mobile:dev`.
+
 ## Qué se prueba
 
 Esta vista usa el frontend React real, el backend Fastify real y PostgreSQL local. Safari accede a un único origen HTTPS temporal. Vite reenvía `/api` al backend privado, por lo que la sesión web conserva una cookie `HttpOnly`, `Secure` y `SameSite=Lax`.

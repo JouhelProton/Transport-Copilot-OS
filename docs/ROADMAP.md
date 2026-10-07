@@ -14,14 +14,18 @@ Contraseñas `scrypt`, sesiones opacas revocables, cookie `HttpOnly`, organizaci
 
 ## v0.3 — Driver Mobile
 
-**STATUS: EN CURSO / VALIDACIÓN**
+**STATUS: IMPLEMENTADO**
 
-Capacitor iOS/Android, autenticación móvil segura, servicios reales del conductor y aceptación idempotente `DRIVER_ACCEPTED`.
+Autenticación móvil segura, servicios reales del conductor y aceptación idempotente `DRIVER_ACCEPTED` implementados. La base Capacitor anterior queda deprecada para Driver App.
 
-- **Mobile web/PWA:** implementación HTTPS lista y flujo verificado por túnel; pendiente confirmación visual y táctil en un iPhone físico.
-- **iOS nativo:** proyecto generado y sincronizable; validación de hardware pendiente hasta disponer de macOS/Xcode.
+- **Mobile web/PWA:** se conserva como referencia y fallback temporal.
+- **Driver nativa:** migrada a React Native + Expo en v0.3.5.
 
-Tras confirmar Safari en un iPhone físico, v0.3 puede declararse **funcionalmente completado, con validación nativa iOS pendiente**. La ausencia de Mac no bloquea trabajo posterior que no dependa de compilación o hardware nativo.
+## v0.3.5 — Expo Driver App Migration
+
+**STATUS: EN CURSO**
+
+Expo SDK 57, Expo Router, SecureStore, conectividad, login DRIVER, servicios, detalle, aceptación y logout están implementados y validados técnicamente. Pasa a **COMPLETADO** cuando el flujo se confirme físicamente en un iPhone mediante Expo Go.
 
 ## v0.4 — Live Tracking
 
@@ -61,4 +65,4 @@ Vertical productiva aprobada, operada y monitorizada con clientes reales.
 
 ## Condición de avance
 
-Cada rama se revisa antes de fusionarse. Los módulos marcados DEMO no reciben datos reales. v0.4 no comienza en esta rama; requiere cerrar la validación funcional web de v0.3. La validación nativa iOS se registra por separado hasta disponer de Mac.
+Cada rama se revisa antes de fusionarse. Los módulos marcados DEMO no reciben datos reales. v0.4 no comienza en esta rama; requiere cerrar la validación física de v0.3.5 en Expo Go. No se necesita Mac para esta comprobación.

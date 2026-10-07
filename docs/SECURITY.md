@@ -38,13 +38,15 @@ El webhook GES de demo usa secreto compartido y recibe un evento normalizado de 
 
 Ampliar las mismas reglas a documentos, tracking, facturación, notificaciones y procesos en background. Añadir restricciones/RLS en DB como segunda barrera. Los tokens futuros de tracking de cliente deberán ser aleatorios, solo lectura, por servicio y revocables.
 
-## Cliente móvil implementado
+## Cliente móvil Expo implementado
 
-Capacitor ejecuta la UI desde un origen WebView distinto al API. La cookie `SameSite=Lax` de la web no ofrece persistencia same-site fiable en ese escenario, por lo que la app usa Bearer sin cambiar el modelo de sesión. El token sigue siendo opaco y revocable, el backend guarda solo el hash y `/auth/me` no lo expone.
+La Driver App Expo usa Bearer sin cambiar el modelo de sesión. El token sigue siendo opaco y revocable, el backend guarda solo el hash y `/auth/me` no lo expone.
 
-En iOS se almacena en Keychain. En Android se cifra con AES-GCM usando una clave de Android Keystore. El adaptador no se invoca en web, donde continúa la cookie `HttpOnly`; nunca se guarda token o contraseña en `localStorage`. La API es configurable por build, no contiene secretos y producción exige HTTPS.
+`expo-secure-store` lo almacena en Keychain en iOS y almacenamiento cifrado respaldado por Android Keystore en Android. Nunca se guarda la contraseña. La API se configura con `EXPO_PUBLIC_API_URL`, no contiene secretos y solo acepta HTTPS.
 
-La app restringe su navegación a conductor, pero esta medida es UX y reducción de superficie. El backend valida rol, membership, organización, vínculo `Driver.userId` y `Assignment` activo en cada petición. Con conectividad, logout revoca la sesión en servidor antes de borrar el token local. Sin conectividad, la app elimina el token del dispositivo para cerrar la sesión local; la sesión remota conserva su caducidad o puede revocarse administrativamente.
+La app restringe su navegación a conductor, pero esta medida es UX y reducción de superficie. El backend valida rol, membership, organización, vínculo `Driver.userId` y `Assignment` activo en cada petición. Logout intenta revocar la sesión y siempre borra el token local; sin conectividad, la sesión remota conserva su caducidad o puede revocarse administrativamente.
+
+`pnpm mobile:dev` publica temporalmente solo Fastify mediante Quick Tunnel HTTPS; PostgreSQL permanece en loopback. El bundle de Expo viaja por LAN o por el túnel propio de Expo. La URL efímera se ignora en Git y no sustituye autenticación ni autorización.
 
 ## Preview HTTPS de iPhone desde Windows
 
