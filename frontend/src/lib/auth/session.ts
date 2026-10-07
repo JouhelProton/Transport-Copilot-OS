@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { z } from "zod";
 import { PORTAL_ROLES, type Portal, type Role } from "@/lib/domain/types";
+import { apiFetch, ApiRequestError } from "@/lib/platform/api-client";
+import { authTransport } from "@/lib/platform/auth-transport";
 
 export type Permission =
   | "orders:create"
@@ -9,7 +11,9 @@ export type Permission =
   | "services:read"
   | "services:assign"
   | "drivers:read"
-  | "vehicles:read";
+  | "vehicles:read"
+  | "driver:services:read"
+  | "driver:services:accept";
 
 export interface SessionMembership {
   id: string;
@@ -42,13 +46,8 @@ interface AuthPayload {
   expiresAt: string;
   customerId?: string;
   driverId?: string;
+  sessionToken?: string;
 }
-
-interface ApiErrorBody {
-  error?: { message?: string };
-}
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3001").replace(/\/$/, "");
 const listeners = new Set<() => void>();
 let current: Session | null = null;
 let pendingLoad: Promise<Session | null> | null = null;
@@ -77,15 +76,9 @@ function normalize(data: AuthPayload): Session {
 }
 
 async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}/api/v1/auth${path}`, {
-    ...init,
-    credentials: "include",
-    headers: { ...(init?.body ? { "content-type": "application/json" } : {}), ...init?.headers },
-  });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
-    throw new Error(body.error?.message ?? `Error de autenticación (${response.status})`);
-  }
+  const login = path === "/login";
+  const resolvedPath = login ? authTransport.loginPath : path;
+  const response = await apiFetch(`/auth${resolvedPath}`, init, !login);
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
@@ -108,7 +101,8 @@ export async function ensureSession(force = false): Promise<Session | null> {
       publish(session);
       return session;
     })
-    .catch(() => {
+    .catch(async (error) => {
+      if (error instanceof ApiRequestError && error.status === 401) await authTransport.clear();
       publish(null);
       return null;
     })
@@ -142,9 +136,11 @@ export const auth = {
         method: "POST",
         body: JSON.stringify(parsed.data),
       });
+      await authTransport.persistLoginToken(data.sessionToken);
       const session = normalize(data);
       if (!canAccess(session, portal)) {
         await authRequest<void>("/logout", { method: "POST" });
+        await authTransport.clear();
         publish(null);
         return { ok: false as const, error: "Este usuario no tiene permisos para este portal." };
       }
@@ -154,6 +150,7 @@ export const auth = {
         return { ok: false as const, error: "No se pudo verificar la sesión creada" };
       return { ok: true as const, session: verifiedSession };
     } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) await authTransport.clear();
       return {
         ok: false as const,
         error: error instanceof Error ? error.message : "No se pudo iniciar sesión",
@@ -163,7 +160,10 @@ export const auth = {
   async signOut() {
     try {
       await authRequest<void>("/logout", { method: "POST" });
+    } catch {
+      // Sin red no se puede revocar todavía; el token local sí se elimina.
     } finally {
+      await authTransport.clear();
       publish(null);
     }
   },

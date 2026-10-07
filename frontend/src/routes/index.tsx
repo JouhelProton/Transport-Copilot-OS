@@ -7,9 +7,9 @@ import hero from "@/assets/hero-truck.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Nexo · Transport AI OS — Plataforma operativa de transporte" },
+      { title: "Transport Copilot OS — Plataforma operativa de transporte" },
       { name: "description", content: "Conecta cargador, transportista y conductor en un único flujo: seguimiento, POD, incidencias y facturación." },
-      { property: "og:title", content: "Nexo · Transport AI OS" },
+      { property: "og:title", content: "Transport Copilot OS" },
       { property: "og:description", content: "Una plataforma, tres portales: cliente, transportista y conductor." },
     ],
   }),

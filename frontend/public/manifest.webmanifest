@@ -1,6 +1,6 @@
 {
-  "name": "Nexo Conductor",
-  "short_name": "Nexo",
+  "name": "Transport Copilot Driver",
+  "short_name": "Copilot",
   "start_url": "/conductor",
   "scope": "/",
   "display": "standalone",

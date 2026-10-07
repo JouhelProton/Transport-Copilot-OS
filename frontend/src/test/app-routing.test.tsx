@@ -14,5 +14,12 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
-});
 
+  it("matches the Driver service detail route", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    const matches = router.matchRoutes("/conductor/svc_test");
+
+    expect(matches.at(-1)?.routeId).toBe("/conductor/$id");
+  });
+});

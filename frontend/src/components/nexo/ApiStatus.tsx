@@ -5,6 +5,7 @@ const labels: Record<string, string> = {
   ACCEPTED: "Aceptado",
   PLANNED: "Planificado",
   ASSIGNED: "Asignado",
+  DRIVER_ACCEPTED: "Aceptado por conductor",
 };
 
 export function ApiStatus({ status }: { status: string }) {
@@ -12,7 +13,7 @@ export function ApiStatus({ status }: { status: string }) {
     <span
       className={cn(
         "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
-        status === "ASSIGNED" || status === "ACCEPTED"
+        status === "ASSIGNED" || status === "ACCEPTED" || status === "DRIVER_ACCEPTED"
           ? "bg-success/15 text-success"
           : "bg-warning/15 text-warning-foreground",
       )}

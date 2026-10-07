@@ -91,24 +91,52 @@
   --sidebar-accent-foreground: oklch(0.99 0 0);
   --sidebar-border: oklch(0.32 0.06 264);
   --sidebar-ring: oklch(0.62 0.19 255);
-  --gradient-hero: radial-gradient(1200px 600px at 85% -10%, oklch(0.55 0.2 258 / 0.35), transparent 60%),
+  --gradient-hero:
+    radial-gradient(1200px 600px at 85% -10%, oklch(0.55 0.2 258 / 0.35), transparent 60%),
     linear-gradient(160deg, oklch(0.2 0.06 264), oklch(0.26 0.08 262));
   --shadow-card: 0 1px 2px oklch(0.2 0.05 262 / 0.05), 0 8px 24px -12px oklch(0.2 0.05 262 / 0.15);
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-size: 15px;
   }
-  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
 }
 
-@utility bg-hero { background: var(--gradient-hero); }
-@utility shadow-card { box-shadow: var(--shadow-card); }
+html.driver-native,
+html.driver-native body {
+  min-height: 100%;
+  overscroll-behavior-y: none;
+  background: var(--color-background);
+}
+
+html.driver-native .driver-app-shell {
+  min-height: 100dvh;
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+
+@utility bg-hero {
+  background: var(--gradient-hero);
+}
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
 @utility map-geo {
   background:
     linear-gradient(oklch(0.9 0.02 240 / 0.6) 1px, transparent 1px) 0 0 / 40px 40px,
@@ -118,7 +146,5 @@
 @utility map-sat {
   background:
     radial-gradient(circle at 30% 40%, oklch(0.45 0.07 130), transparent 40%),
-    radial-gradient(circle at 70% 60%, oklch(0.5 0.06 90), transparent 45%),
-    oklch(0.36 0.05 140);
+    radial-gradient(circle at 70% 60%, oklch(0.5 0.06 90), transparent 45%), oklch(0.36 0.05 140);
 }
-

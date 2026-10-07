@@ -23,7 +23,15 @@ export interface AuthContext {
   actorKind: "customer" | "driver" | "transport";
   customerId?: string;
   driverId?: string;
-  mode: "SESSION";
+  mode: "COOKIE" | "BEARER";
+}
+
+export function readBearerToken(authorization: string | undefined) {
+  if (!authorization) return undefined;
+  const [scheme, token, ...extra] = authorization.trim().split(/\s+/);
+  if (scheme?.toLowerCase() !== "bearer" || !token || extra.length)
+    return undefined;
+  return token;
 }
 
 export function createAuthenticate(database: Database, config: AppConfig) {
@@ -31,10 +39,10 @@ export function createAuthenticate(database: Database, config: AppConfig) {
     request: FastifyRequest,
     reply: FastifyReply,
   ) {
-    const rawToken = readCookie(
-      request.headers.cookie,
-      config.SESSION_COOKIE_NAME,
-    );
+    const bearerToken = readBearerToken(request.headers.authorization);
+    const rawToken =
+      bearerToken ??
+      readCookie(request.headers.cookie, config.SESSION_COOKIE_NAME);
     if (!rawToken) throw unauthorized();
     const now = new Date();
     const session = await database.session.findUnique({
@@ -74,7 +82,7 @@ export function createAuthenticate(database: Database, config: AppConfig) {
         ? { customerId: session.user.customer.id }
         : {}),
       ...(session.user.driver ? { driverId: session.user.driver.id } : {}),
-      mode: "SESSION",
+      mode: bearerToken ? "BEARER" : "COOKIE",
     };
   };
 }

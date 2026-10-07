@@ -5,10 +5,10 @@ import { MOTIVOS, validateLoginSearch } from "@/lib/auth/guard";
 export const Route = createFileRoute("/login/cliente")({
   validateSearch: validateLoginSearch,
   head: () => ({ meta: [
-    { title: "Acceso cliente — Nexo · Transport AI OS" },
-    { name: "description", content: "Acceso al portal de cliente/cargador de Nexo." },
-    { property: "og:title", content: "Acceso cliente — Nexo" },
-    { property: "og:description", content: "Acceso al portal de cliente/cargador de Nexo." },
+    { title: "Acceso cliente — Transport Copilot OS" },
+    { name: "description", content: "Acceso al portal de cliente/cargador de Transport Copilot OS." },
+    { property: "og:title", content: "Acceso cliente — Transport Copilot OS" },
+    { property: "og:description", content: "Acceso al portal de cliente/cargador de Transport Copilot OS." },
   ] }),
   component: () => {
     const { motivo } = Route.useSearch();

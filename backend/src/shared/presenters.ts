@@ -110,6 +110,7 @@ export function presentService(service: ServiceRecord) {
           vehicleId: assignment.vehicleId,
           vehiclePlate: assignment.vehicle.plate,
           assignedAt: assignment.assignedAt.toISOString(),
+          acceptedAt: assignment.acceptedAt?.toISOString() ?? null,
         }
       : null,
     events: service.events.map((event) => ({
@@ -121,5 +122,26 @@ export function presentService(service: ServiceRecord) {
     })),
     createdAt: service.createdAt.toISOString(),
     updatedAt: service.updatedAt.toISOString(),
+  };
+}
+
+export function presentDriverService(service: ServiceRecord) {
+  const full = presentService(service);
+  return {
+    id: full.id,
+    orderId: full.orderId,
+    reference: full.reference,
+    origin: full.origin,
+    destination: full.destination,
+    cargo: full.cargo,
+    pallets: full.pallets,
+    tempMin: full.tempMin,
+    tempMax: full.tempMax,
+    plannedPickup: full.plannedPickup,
+    plannedDelivery: full.plannedDelivery,
+    status: full.status,
+    assignment: full.assignment,
+    events: full.events,
+    updatedAt: full.updatedAt,
   };
 }

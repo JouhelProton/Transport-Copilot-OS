@@ -7,10 +7,10 @@ export const Route = createFileRoute("/cliente")({
   ssr: false,
   beforeLoad: portalGuard("cliente"),
   head: () => ({ meta: [
-    { title: "Portal cliente — Nexo" },
+    { title: "Portal cliente — Transport Copilot OS" },
     { name: "description", content: "Portal del cliente: envíos, seguimiento, documentos e incidencias." },
-    { property: "og:title", content: "Portal cliente — Nexo" },
-    { property: "og:description", content: "Portal del cliente de Nexo." },
+    { property: "og:title", content: "Portal cliente — Transport Copilot OS" },
+    { property: "og:description", content: "Portal del cliente de Transport Copilot OS." },
     { name: "robots", content: "noindex" },
   ] }),
   component: () => (

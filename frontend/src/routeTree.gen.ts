@@ -21,6 +21,7 @@ import { Route as ClienteIncidenciasRouteImport } from './routes/cliente.inciden
 import { Route as ClientePedidosRouteImport } from './routes/cliente.pedidos'
 import { Route as ClienteSeguimientoRouteImport } from './routes/cliente.seguimiento'
 import { Route as ConductorIndexRouteImport } from './routes/conductor.index'
+import { Route as ConductorIdRouteImport } from './routes/conductor.$id'
 import { Route as LoginClienteRouteImport } from './routes/login.cliente'
 import { Route as LoginConductorRouteImport } from './routes/login.conductor'
 import { Route as LoginTransportistaRouteImport } from './routes/login.transportista'
@@ -96,6 +97,11 @@ const ClienteSeguimientoRoute = ClienteSeguimientoRouteImport.update({
 const ConductorIndexRoute = ConductorIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => ConductorRoute,
+} as any)
+const ConductorIdRoute = ConductorIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
   getParentRoute: () => ConductorRoute,
 } as any)
 const LoginClienteRoute = LoginClienteRouteImport.update({
@@ -197,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/cliente/incidencias': typeof ClienteIncidenciasRoute
   '/cliente/pedidos': typeof ClientePedidosRoute
   '/cliente/seguimiento': typeof ClienteSeguimientoRoute
+  '/conductor/$id': typeof ConductorIdRoute
   '/login/cliente': typeof LoginClienteRoute
   '/login/conductor': typeof LoginConductorRoute
   '/login/transportista': typeof LoginTransportistaRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/cliente/incidencias': typeof ClienteIncidenciasRoute
   '/cliente/pedidos': typeof ClientePedidosRoute
   '/cliente/seguimiento': typeof ClienteSeguimientoRoute
+  '/conductor/$id': typeof ConductorIdRoute
   '/login/cliente': typeof LoginClienteRoute
   '/login/conductor': typeof LoginConductorRoute
   '/login/transportista': typeof LoginTransportistaRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/cliente/incidencias': typeof ClienteIncidenciasRoute
   '/cliente/pedidos': typeof ClientePedidosRoute
   '/cliente/seguimiento': typeof ClienteSeguimientoRoute
+  '/conductor/$id': typeof ConductorIdRoute
   '/login/cliente': typeof LoginClienteRoute
   '/login/conductor': typeof LoginConductorRoute
   '/login/transportista': typeof LoginTransportistaRoute
@@ -286,6 +295,7 @@ export interface FileRouteTypes {
     | '/cliente/incidencias'
     | '/cliente/pedidos'
     | '/cliente/seguimiento'
+    | '/conductor/$id'
     | '/login/cliente'
     | '/login/conductor'
     | '/login/transportista'
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/cliente/incidencias'
     | '/cliente/pedidos'
     | '/cliente/seguimiento'
+    | '/conductor/$id'
     | '/login/cliente'
     | '/login/conductor'
     | '/login/transportista'
@@ -342,6 +353,7 @@ export interface FileRouteTypes {
     | '/cliente/incidencias'
     | '/cliente/pedidos'
     | '/cliente/seguimiento'
+    | '/conductor/$id'
     | '/login/cliente'
     | '/login/conductor'
     | '/login/transportista'
@@ -457,6 +469,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/conductor/'
       preLoaderRoute: typeof ConductorIndexRouteImport
+      parentRoute: typeof ConductorRoute
+    }
+    '/conductor/$id': {
+      id: '/conductor/$id'
+      path: '/$id'
+      fullPath: '/conductor/$id'
+      preLoaderRoute: typeof ConductorIdRouteImport
       parentRoute: typeof ConductorRoute
     }
     '/login/cliente': {
@@ -596,10 +615,12 @@ const ClienteRouteWithChildren =
   ClienteRoute._addFileChildren(ClienteRouteChildren)
 
 interface ConductorRouteChildren {
+  ConductorIdRoute: typeof ConductorIdRoute
   ConductorIndexRoute: typeof ConductorIndexRoute
 }
 
 const ConductorRouteChildren: ConductorRouteChildren = {
+  ConductorIdRoute: ConductorIdRoute,
   ConductorIndexRoute: ConductorIndexRoute,
 }
 

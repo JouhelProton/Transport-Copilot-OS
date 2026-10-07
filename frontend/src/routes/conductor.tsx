@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate, Outlet, useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
-import { DemoBadge, Logo } from "@/components/nexo/ui";
+import { Logo } from "@/components/nexo/ui";
 import { portalGuard } from "@/lib/auth/guard";
 import { auth, useSession } from "@/lib/auth/session";
 
@@ -9,13 +9,13 @@ export const Route = createFileRoute("/conductor")({
   beforeLoad: portalGuard("conductor"),
   head: () => ({
     meta: [
-      { title: "App conductor — Nexo" },
+      { title: "App conductor — Transport Copilot OS" },
       {
         name: "description",
         content: "App del conductor: servicio actual, llegada, incidencias, entrega y POD.",
       },
-      { property: "og:title", content: "App conductor — Nexo" },
-      { property: "og:description", content: "App móvil del conductor de Nexo." },
+      { property: "og:title", content: "App conductor — Transport Copilot OS" },
+      { property: "og:description", content: "App móvil del conductor de Transport Copilot OS." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -23,21 +23,21 @@ export const Route = createFileRoute("/conductor")({
 });
 
 function Layout() {
-  const s = useSession();
+  const { session: guardedSession } = Route.useRouteContext();
+  const s = useSession() ?? guardedSession;
   const navigate = useNavigate();
   if (!s) return <Navigate to="/" replace />;
   return (
-    <div className="mx-auto min-h-screen max-w-lg bg-background">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-card px-4 py-3">
+    <div className="driver-app-shell mx-auto min-h-screen max-w-lg bg-background">
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-card/95 px-4 py-3 backdrop-blur">
         <Logo to="/conductor" />
         <div className="flex items-center gap-2">
-          <DemoBadge />
           <button
             aria-label="Cerrar sesión"
             className="rounded-lg border p-2"
             onClick={async () => {
               await auth.signOut();
-              navigate({ to: "/", replace: true });
+              navigate({ to: "/login/conductor", replace: true });
             }}
           >
             <LogOut className="h-4 w-4" />
@@ -45,7 +45,7 @@ function Layout() {
         </div>
       </header>
       <p className="px-4 pt-4 text-sm text-muted-foreground">Hola, {s?.name}</p>
-      <main className="p-4">
+      <main className="p-4 pb-8">
         <Outlet />
       </main>
     </div>

@@ -8,6 +8,8 @@ export const PERMISSIONS = [
   "services:assign",
   "drivers:read",
   "vehicles:read",
+  "driver:services:read",
+  "driver:services:accept",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -25,7 +27,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "vehicles:read",
   ],
   ACCOUNTING: ["orders:read", "services:read"],
-  DRIVER: ["services:read"],
+  DRIVER: ["driver:services:read", "driver:services:accept"],
   CUSTOMER: ["orders:create", "orders:read", "services:read"],
 };
 

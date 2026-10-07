@@ -11,6 +11,15 @@ const envSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
   CORS_ORIGIN: z.string().url().default("http://127.0.0.1:4176"),
+  MOBILE_CORS_ORIGINS: z
+    .string()
+    .default("capacitor://localhost,https://localhost")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    ),
   SESSION_COOKIE_NAME: z
     .string()
     .regex(/^[A-Za-z0-9_-]+$/)

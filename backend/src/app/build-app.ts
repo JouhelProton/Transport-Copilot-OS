@@ -9,6 +9,7 @@ import { registerOrderRoutes } from "../modules/orders/routes.js";
 import { registerServiceRoutes } from "../modules/services/routes.js";
 import { registerResourceRoutes } from "../modules/resources/routes.js";
 import { registerAuthRoutes } from "../modules/auth/routes.js";
+import { registerDriverRoutes } from "../modules/driver/routes.js";
 import { forbidden } from "../shared/errors.js";
 
 export async function buildApp(config: AppConfig, providedDatabase?: Database) {
@@ -32,20 +33,25 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
     requestIdHeader: "x-request-id",
   });
 
+  const allowedOrigins = [config.CORS_ORIGIN, ...config.MOBILE_CORS_ORIGINS];
   await app.register(cors, {
-    origin: config.CORS_ORIGIN,
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["content-type", "x-request-id"],
+    allowedHeaders: ["content-type", "x-request-id", "authorization"],
   });
 
   app.addHook("onRequest", async (request) => {
     if (!["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) return;
     const origin = request.headers.origin;
     const fetchSite = request.headers["sec-fetch-site"];
-    if (origin && origin !== config.CORS_ORIGIN)
+    if (origin && !allowedOrigins.includes(origin))
       throw forbidden("Origen de la petición no permitido");
-    if (fetchSite === "cross-site")
+    const isMobileLogin = request.url === "/api/v1/auth/mobile-login";
+    const hasBearer = request.headers.authorization
+      ?.toLowerCase()
+      .startsWith("bearer ");
+    if (fetchSite === "cross-site" && !hasBearer && !isMobileLogin)
       throw forbidden("Petición cross-site no permitida");
   });
 
@@ -65,6 +71,7 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
       await registerOrderRoutes(api, database, config);
       await registerServiceRoutes(api, database, config);
       await registerResourceRoutes(api, database, config);
+      await registerDriverRoutes(api, database, config);
     },
     { prefix: "/api/v1" },
   );

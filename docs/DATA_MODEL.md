@@ -11,7 +11,7 @@ El schema real vive en `backend/prisma/schema.prisma`. PostgreSQL es la persiste
 | `Customer`           | Relación comercial entre transportista y organización cliente; puede vincularse al usuario cliente. |
 | `Order`              | Solicitud del cliente. Conserva organización propietaria y transportista destinatario.              |
 | `Service`            | Ejecución creada al aceptar un pedido. No duplica ni sustituye a `Order`.                           |
-| `Assignment`         | Historial de asignación de servicio a conductor y vehículo.                                         |
+| `Assignment`         | Historial de asignación; `acceptedAt` registra la aceptación de la asignación activa.               |
 | `Driver`             | Recurso operativo delimitado por transportista; puede vincularse a un usuario.                      |
 | `Vehicle`            | Recurso de flota delimitado por transportista.                                                      |
 | `ServiceEvent`       | Evento persistido de pedido/servicio, con actor, correlación, versión y payload.                    |
@@ -34,7 +34,7 @@ Organization/User 1─* AuditLog
 
 `Order` contiene la solicitud: referencia, ruta, mercancía, ventanas y requisitos. Su estado inicial es `SUBMITTED`.
 
-`Service` aparece únicamente cuando el transportista acepta el pedido. Representa la ejecución y pasa de `PLANNED` a `ASSIGNED`. Un índice único impide crear más de un servicio para el mismo pedido en esta primera vertical.
+`Service` aparece únicamente cuando el transportista acepta el pedido. En esta versión recorre `PLANNED → ASSIGNED → DRIVER_ACCEPTED`. Un índice único impide crear más de un servicio para el mismo pedido en esta primera vertical.
 
 ## Multi-tenancy
 
@@ -49,7 +49,9 @@ Las consultas nunca aceptan el tenant del body como autoridad. El contexto proce
 
 ## Sesiones
 
-El token de sesión tiene 256 bits aleatorios y solo se entrega en la cookie. `Session.tokenHash` almacena SHA-256 del token para localizar y revocar la sesión sin persistir el secreto. `expiresAt` impone caducidad absoluta, `revokedAt` invalida logout o revocación administrativa y `currentMembershipId` determina organización y rol activos.
+El token de sesión tiene 256 bits aleatorios. Se entrega en cookie `HttpOnly` a la web o una sola vez a la app móvil para almacenamiento seguro. `Session.tokenHash` almacena SHA-256 del token para localizar y revocar la sesión sin persistir el secreto. `expiresAt` impone caducidad absoluta, `revokedAt` invalida logout o revocación administrativa y `currentMembershipId` determina organización y rol activos.
+
+La cadena móvil es inequívoca: `User → Membership(role=DRIVER) → Driver.userId → Assignment(driverId, ACTIVE) → Service`. El servidor aplica toda la cadena y responde `404` a recursos de otro conductor o tenant.
 
 ## Entidades todavía conceptuales o DEMO
 

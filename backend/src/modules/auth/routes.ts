@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { Role } from "../../generated/prisma/enums.js";
 import type { AppConfig } from "../../config/env.js";
@@ -8,7 +8,7 @@ import {
   tooManyRequests,
   unauthorized,
 } from "../../shared/errors.js";
-import { createAuthenticate } from "./auth.js";
+import { createAuthenticate, readBearerToken } from "./auth.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { permissionsFor } from "./rbac.js";
 import {
@@ -83,7 +83,11 @@ export async function registerAuthRoutes(
   const authenticate = createAuthenticate(database, config);
   const attempts = new Map<string, Attempt>();
 
-  app.post("/login", async (request, reply) => {
+  async function login(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    transport: "cookie" | "bearer",
+  ) {
     const input = loginSchema.parse(request.body);
     const key = clientKey(request, input.email);
     const now = Date.now();
@@ -141,12 +145,13 @@ export async function registerAuthRoutes(
           entityType: "Session",
           entityId: session.id,
           requestId: request.id,
-          metadata: { membershipId: membership.id },
+          metadata: { membershipId: membership.id, transport },
         },
       });
       return session;
     });
-    reply.header("set-cookie", sessionCookie(config, token, expiresAt));
+    if (transport === "cookie")
+      reply.header("set-cookie", sessionCookie(config, token, expiresAt));
     return reply.send({
       data: {
         user: { id: user.id, name: user.name, email: user.email },
@@ -165,15 +170,21 @@ export async function registerAuthRoutes(
         ...(user.customer ? { customerId: user.customer.id } : {}),
         ...(user.driver ? { driverId: user.driver.id } : {}),
         expiresAt: created.expiresAt.toISOString(),
+        ...(transport === "bearer" ? { sessionToken: token } : {}),
       },
     });
-  });
+  }
+
+  app.post("/login", async (request, reply) => login(request, reply, "cookie"));
+
+  app.post("/mobile-login", async (request, reply) =>
+    login(request, reply, "bearer"),
+  );
 
   app.post("/logout", async (request, reply) => {
-    const token = readCookie(
-      request.headers.cookie,
-      config.SESSION_COOKIE_NAME,
-    );
+    const token =
+      readBearerToken(request.headers.authorization) ??
+      readCookie(request.headers.cookie, config.SESSION_COOKIE_NAME);
     if (token) {
       await database.session.updateMany({
         where: { tokenHash: hashSessionToken(token), revokedAt: null },

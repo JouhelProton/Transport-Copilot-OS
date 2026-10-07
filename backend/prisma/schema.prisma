@@ -31,6 +31,7 @@ enum OrderStatus {
 enum ServiceStatus {
   PLANNED
   ASSIGNED
+  DRIVER_ACCEPTED
 }
 
 enum AssignmentStatus {
@@ -55,6 +56,7 @@ enum ServiceEventType {
   SERVICE_CREATED
   DRIVER_ASSIGNED
   VEHICLE_ASSIGNED
+  DRIVER_ACCEPTED
 }
 
 model Organization {
@@ -240,6 +242,7 @@ model Assignment {
   status           AssignmentStatus @default(ACTIVE)
   assignedByUserId String
   assignedAt       DateTime         @default(now())
+  acceptedAt       DateTime?
   endedAt          DateTime?
   organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   service          Service          @relation(fields: [serviceId], references: [id], onDelete: Restrict)

@@ -12,6 +12,7 @@ const PASSWORD = "Demo-Transport-2026!";
 let customerHeaders: { cookie: string };
 let carrierHeaders: { cookie: string };
 let otherHeaders: { cookie: string };
+let driverHeaders: { authorization: string };
 let createdOrderId = "";
 let createdServiceId = "";
 
@@ -32,6 +33,15 @@ beforeAll(async () => {
   customerHeaders = await authenticate("cliente@demo.nexo.local");
   carrierHeaders = await authenticate("admin@demo.nexo.local");
   otherHeaders = await authenticate("norte@demo.nexo.local");
+  const driverLogin = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/mobile-login",
+    payload: { email: "conductor@demo.nexo.local", password: PASSWORD },
+  });
+  expect(driverLogin.statusCode).toBe(200);
+  driverHeaders = {
+    authorization: `Bearer ${driverLogin.json().data.sessionToken}`,
+  };
 });
 
 afterAll(async () => {
@@ -134,13 +144,55 @@ describe("vertical pedido → servicio → asignación", () => {
       method: "POST",
       url: `/api/v1/services/${createdServiceId}/assign`,
       headers: carrierHeaders,
-      payload: { driverId: "drv_ana", vehicleId: "veh_9012" },
+      payload: { driverId: "drv_miguel", vehicleId: "veh_9012" },
     });
     expect(assigned.statusCode).toBe(200);
     expect(assigned.json().data).toMatchObject({
       status: "ASSIGNED",
-      assignment: { driverId: "drv_ana", vehicleId: "veh_9012" },
+      assignment: { driverId: "drv_miguel", vehicleId: "veh_9012" },
     });
+
+    const driverServices = await app.inject({
+      method: "GET",
+      url: "/api/v1/driver/services",
+      headers: driverHeaders,
+    });
+    expect(driverServices.statusCode).toBe(200);
+    expect(
+      driverServices
+        .json()
+        .data.some(
+          (service: { id: string }) => service.id === createdServiceId,
+        ),
+    ).toBe(true);
+
+    const driverDetail = await app.inject({
+      method: "GET",
+      url: `/api/v1/driver/services/${createdServiceId}`,
+      headers: driverHeaders,
+    });
+    expect(driverDetail.statusCode).toBe(200);
+    expect(driverDetail.json().data.status).toBe("ASSIGNED");
+
+    const driverAccepted = await app.inject({
+      method: "POST",
+      url: `/api/v1/driver/services/${createdServiceId}/accept`,
+      headers: driverHeaders,
+    });
+    expect(driverAccepted.statusCode).toBe(200);
+    expect(driverAccepted.json().data).toMatchObject({
+      status: "DRIVER_ACCEPTED",
+      assignment: { driverId: "drv_miguel" },
+    });
+    expect(driverAccepted.json().data.assignment.acceptedAt).toBeTruthy();
+
+    const carrierService = await app.inject({
+      method: "GET",
+      url: `/api/v1/services/${createdServiceId}`,
+      headers: carrierHeaders,
+    });
+    expect(carrierService.statusCode).toBe(200);
+    expect(carrierService.json().data.status).toBe("DRIVER_ACCEPTED");
 
     const customerOrder = await app.inject({
       method: "GET",
@@ -150,7 +202,7 @@ describe("vertical pedido → servicio → asignación", () => {
     expect(customerOrder.statusCode).toBe(200);
     expect(customerOrder.json().data.service).toMatchObject({
       id: createdServiceId,
-      status: "ASSIGNED",
+      status: "DRIVER_ACCEPTED",
     });
 
     const hiddenService = await app.inject({
@@ -170,6 +222,7 @@ describe("vertical pedido → servicio → asignación", () => {
         "SERVICE_CREATED",
         "DRIVER_ASSIGNED",
         "VEHICLE_ASSIGNED",
+        "DRIVER_ACCEPTED",
       ]),
     );
     const audit = await database.auditLog.findMany({
@@ -180,6 +233,7 @@ describe("vertical pedido → servicio → asignación", () => {
         "ORDER_CREATED",
         "ORDER_ACCEPTED",
         "SERVICE_ASSIGNED",
+        "SERVICE_DRIVER_ACCEPTED",
       ]),
     );
   });

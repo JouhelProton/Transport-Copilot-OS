@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { auth, DEV_ACCOUNTS, DEV_PASSWORD, loginSchema } from "@/lib/auth/session";
 import type { Portal } from "@/lib/domain/types";
 import { DemoBadge, Logo } from "./ui";
+import { platform } from "@/lib/platform/runtime";
 
 const META: Record<Portal, { title: string; text: string; home: string }> = {
   cliente: {
@@ -65,12 +66,14 @@ export function LoginPage({ portal, reason }: { portal: Portal; reason?: string 
       </div>
       <div className="flex flex-col justify-center px-5 py-10 sm:px-12">
         <div className="mx-auto w-full max-w-md">
-          <Link
-            to="/acceso"
-            className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> Elegir otro acceso
-          </Link>
+          {!platform.isDriverNativeApp && (
+            <Link
+              to="/acceso"
+              className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" /> Elegir otro acceso
+            </Link>
+          )}
           <div className="mb-6 flex items-center gap-3">
             <h1 className="text-2xl font-semibold">{m.title}</h1>
             <DemoBadge label="Sesión segura" />
@@ -144,34 +147,36 @@ export function LoginPage({ portal, reason }: { portal: Portal; reason?: string 
             </Button>
           </form>
 
-          <div className="mt-8 rounded-xl border border-dashed bg-demo/30 p-4">
-            <p className="text-sm font-semibold text-demo-foreground">
-              Credenciales locales de desarrollo
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Usuarios ficticios del seed. La contraseña está limitada a este entorno local.
-            </p>
-            <div className="mt-3 space-y-2">
-              {demoUsers.map((u) => (
-                <button
-                  key={u.email}
-                  type="button"
-                  onClick={() => {
-                    setEmail(u.email);
-                    setPassword(DEV_PASSWORD);
-                    setErrors({});
-                  }}
-                  className="flex w-full items-center justify-between rounded-lg border bg-card px-3 py-2 text-left text-sm hover:border-primary"
-                >
-                  <span>
-                    <span className="font-medium">{u.name}</span>
-                    <span className="block text-xs text-muted-foreground">{u.email}</span>
-                  </span>
-                  <span className="rounded bg-muted px-2 py-0.5 text-xs">{u.role}</span>
-                </button>
-              ))}
+          {import.meta.env.DEV && (
+            <div className="mt-8 rounded-xl border border-dashed bg-demo/30 p-4">
+              <p className="text-sm font-semibold text-demo-foreground">
+                Credenciales locales de desarrollo
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Usuarios ficticios del seed. La contraseña está limitada a este entorno local.
+              </p>
+              <div className="mt-3 space-y-2">
+                {demoUsers.map((u) => (
+                  <button
+                    key={u.email}
+                    type="button"
+                    onClick={() => {
+                      setEmail(u.email);
+                      setPassword(DEV_PASSWORD);
+                      setErrors({});
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg border bg-card px-3 py-2 text-left text-sm hover:border-primary"
+                  >
+                    <span>
+                      <span className="font-medium">{u.name}</span>
+                      <span className="block text-xs text-muted-foreground">{u.email}</span>
+                    </span>
+                    <span className="rounded bg-muted px-2 py-0.5 text-xs">{u.role}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,99 +1,153 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Camera, FileText, LocateFixed, MapPinCheck, Phone, QrCode, Thermometer, TriangleAlert } from "lucide-react";
-import { toast } from "sonner";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { CalendarClock, ChevronRight, CloudOff, MapPin, RefreshCw, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { IncidentForm } from "@/components/nexo/IncidentForm";
-import { MapView } from "@/components/nexo/MapView";
-import { DemoBadge, EmptyState, Panel, StatusBadge } from "@/components/nexo/ui";
-import { completeDelivery, driverArrived, shareLocation, type ActionResult } from "@/lib/domain/actions";
-import { fmtTime } from "@/lib/domain/projections";
-import { getSession } from "@/lib/auth/session";
-import { useDriverServices } from "@/lib/auth/use-portal";
+import { ApiStatus } from "@/components/nexo/ApiStatus";
+import { EmptyState, Panel } from "@/components/nexo/ui";
+import { usePortalSession } from "@/lib/auth/use-portal";
+import { auth } from "@/lib/auth/session";
+import { useDriverApiServices } from "@/lib/api/operations";
+import { ApiRequestError } from "@/lib/platform/api-client";
+import { useOnlineStatus } from "@/lib/platform/connectivity";
+import { fmtDateTime } from "@/lib/domain/projections";
 
-export const Route = createFileRoute("/conductor/")({ component: Page });
-const notify = (r: ActionResult) => (r.ok ? toast.success(r.message) : toast.error(r.error));
+export const Route = createFileRoute("/conductor/")({ component: DriverHome });
 
-function Page() {
-  const services = useDriverServices();
-  const svc = services.find((s) => !["POD_VALIDADO", "LISTO_FACTURAR"].includes(s.status)) ?? services[0];
-  const [receiver, setReceiver] = useState("");
-  const [file, setFile] = useState<string>();
-  const [podErr, setPodErr] = useState<string>();
-  const [incOpen, setIncOpen] = useState(false);
-  const [podOpen, setPodOpen] = useState(false);
-  if (!svc) return <EmptyState title="Sin servicios asignados" text="Operaciones te asignará el próximo servicio." />;
+function DriverHome() {
+  const session = usePortalSession();
+  const online = useOnlineStatus();
+  const services = useDriverApiServices(session, online);
+  const navigate = useNavigate();
+  const error = services.error;
 
-  const share = () => {
-    if (!("geolocation" in navigator)) { notify(shareLocation(getSession(), svc.id)); return; }
-    navigator.geolocation.getCurrentPosition(
-      () => notify(shareLocation(getSession(), svc.id)), // DEMO: no se usa la posición real
-      () => { toast.info("Permiso denegado. Se envía ubicación DEMO simulada."); notify(shareLocation(getSession(), svc.id)); },
-      { timeout: 5000 },
+  if (!online && !services.data)
+    return (
+      <DriverMessage
+        icon={<CloudOff className="h-8 w-8" />}
+        title="Sin conexión"
+        text="Conéctate a Internet para consultar tus servicios. No se enviará ninguna acción sin confirmación del servidor."
+      />
     );
-  };
-  const closed = ["ENTREGADO", "POD_VALIDADO", "LISTO_FACTURAR"].includes(svc.status);
+  if (services.isPending)
+    return (
+      <div aria-live="polite" className="space-y-3">
+        <p className="text-sm font-medium text-muted-foreground">Cargando tus servicios…</p>
+        {[0, 1].map((item) => (
+          <div key={item} className="h-40 animate-pulse rounded-2xl bg-muted" />
+        ))}
+      </div>
+    );
+  if (error instanceof ApiRequestError && error.status === 401)
+    return (
+      <DriverMessage
+        title="La sesión ha caducado"
+        text="Vuelve a iniciar sesión para continuar."
+        action={
+          <Button
+            className="h-12 w-full text-base"
+            onClick={async () => {
+              await auth.signOut();
+              navigate({ to: "/login/conductor", replace: true });
+            }}
+          >
+            Iniciar sesión
+          </Button>
+        }
+      />
+    );
+  if (error instanceof ApiRequestError && error.status === 403)
+    return (
+      <DriverMessage
+        title="Acceso no autorizado"
+        text="Tu usuario no está vinculado a un conductor activo. Contacta con operaciones."
+      />
+    );
+  if (services.isError)
+    return (
+      <DriverMessage
+        title="No hemos podido cargar tus servicios"
+        text="Puede ser un problema temporal. Comprueba tu conexión y vuelve a intentarlo."
+        action={
+          <Button variant="outline" className="h-12 w-full" onClick={() => services.refetch()}>
+            <RefreshCw className="h-5 w-5" /> Reintentar
+          </Button>
+        }
+      />
+    );
 
   return (
     <div className="space-y-4">
-      <Panel>
-        <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Servicio actual</span><StatusBadge status={svc.status} /></div>
-        <p className="mt-1 font-display text-2xl font-semibold">{svc.id}</p>
-        <p className="mt-2 text-base"><strong>{svc.origin.name.split(" —")[0]}</strong> → <strong>{svc.destination.name.split(" —")[0]}</strong></p>
-        <p className="text-sm text-muted-foreground">{svc.destination.address} · entrega {fmtTime(svc.plannedDelivery)}</p>
-        <p className="mt-2 flex items-center gap-1.5 text-sm"><Thermometer className="h-4 w-4 text-primary" /> {svc.cargo} · {svc.pallets} palets{svc.tempMin !== undefined && ` · ${svc.tempMin}–${svc.tempMax} °C`}</p>
-      </Panel>
-
-      {svc.status === "EN_RUTA" || svc.status === "ASIGNADO" ? (
-        <Button className="h-16 w-full bg-success text-lg text-success-foreground hover:bg-success/90" onClick={() => notify(driverArrived(getSession(), svc.id))}><MapPinCheck className="h-6 w-6" /> He llegado a destino</Button>
-      ) : svc.status === "EN_DESTINO" ? (
-        <Drawer open={podOpen} onOpenChange={setPodOpen}>
-          <DrawerTrigger asChild><Button className="h-16 w-full text-lg"><Camera className="h-6 w-6" /> Entregar y subir POD</Button></DrawerTrigger>
-          <DrawerContent>
-            <DrawerHeader><DrawerTitle>Entrega y POD · {svc.id}</DrawerTitle></DrawerHeader>
-            <form className="space-y-4 p-4" onSubmit={(e) => { e.preventDefault(); const r = completeDelivery(getSession(), { serviceId: svc.id, receiverName: receiver, fileName: file ?? "" }); if (!r.ok) return setPodErr(r.error); notify(r); setPodOpen(false); }}>
-              <div className="space-y-1.5"><Label htmlFor="rec">Nombre de quien recibe</Label><Input id="rec" className="h-12" value={receiver} onChange={(e) => setReceiver(e.target.value)} /></div>
-              <div className="space-y-2">
-                <Label htmlFor="pod">Foto o PDF del POD</Label>
-                <Input id="pod" type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => setFile(e.target.files?.[0]?.name)} />
-                <Button type="button" variant="outline" className="w-full" onClick={() => setFile("POD-muestra-NV-24081.pdf")}>Usar POD de muestra DEMO</Button>
-                {file && <p className="text-sm">Archivo: {file}</p>}
-              </div>
-              {podErr && <p role="alert" className="text-sm text-destructive">{podErr}</p>}
-              <Button type="submit" className="h-12 w-full text-base" disabled={!file}>Confirmar entrega</Button>
-              <p className="text-xs text-muted-foreground">DEMO: el archivo no se sube a ningún servidor; solo se registra su nombre.</p>
-            </form>
-          </DrawerContent>
-        </Drawer>
-      ) : (
-        <div className="rounded-xl bg-success/15 p-4 text-center font-semibold text-success">Entrega completada{svc.pod?.validated ? " · POD validado" : " · POD pendiente de validar"}</div>
-      )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <Drawer open={incOpen} onOpenChange={setIncOpen}>
-          <DrawerTrigger asChild><Button variant="outline" className="h-14 text-base"><TriangleAlert className="h-5 w-5" /> Incidencia</Button></DrawerTrigger>
-          <DrawerContent><DrawerHeader><DrawerTitle>Nueva incidencia</DrawerTitle></DrawerHeader><div className="p-4"><IncidentForm serviceId={svc.id} large onDone={() => setIncOpen(false)} /></div></DrawerContent>
-        </Drawer>
-        <Button variant="outline" className="h-14 text-base" onClick={() => toast.info("Simulación DEMO: llamada a operaciones no realizada.")}><Phone className="h-5 w-5" /> Operaciones</Button>
-        <Button variant="outline" className="col-span-2 h-14 text-base" onClick={share} disabled={closed}><LocateFixed className="h-5 w-5" /> Compartir ubicación</Button>
-      </div>
-      <p className="text-xs text-muted-foreground">La ubicación se envía una sola vez al pulsar. El navegador no permite seguimiento GPS en segundo plano. En DEMO se usa una posición simulada.</p>
-
-      <MapView services={[svc]} height="h-56" />
-
-      <Panel title="Documentos">
-        <ul className="space-y-2">
-          <li className="flex items-center justify-between rounded-lg border p-3"><span className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Carta de porte</span><DemoBadge /></li>
-          <li className="flex items-center justify-between rounded-lg border p-3"><span className="flex items-center gap-2"><QrCode className="h-5 w-5 text-primary" /> DeCA / QR</span><DemoBadge /></li>
-        </ul>
-        <div className="mt-3 grid place-items-center rounded-lg border bg-card p-4" aria-label="QR DEMO">
-          <div className="grid grid-cols-8 gap-0.5">{Array.from({ length: 64 }).map((_, i) => <span key={i} className={`h-3 w-3 ${(i * 7 + (i >> 3)) % 3 ? "bg-ink" : "bg-card"}`} />)}</div>
-          <p className="mt-2 text-xs text-muted-foreground">QR ilustrativo DEMO — no válido</p>
+      {!online && (
+        <div
+          className="flex items-center gap-2 rounded-xl bg-warning/20 p-3 text-sm font-medium"
+          role="status"
+        >
+          <CloudOff className="h-5 w-5" /> Sin conexión · información guardada en pantalla
         </div>
-      </Panel>
+      )}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Operativa</p>
+        <h1 className="mt-1 text-2xl font-semibold">Mis servicios</h1>
+      </div>
+      {services.data?.length ? (
+        <ul className="space-y-3">
+          {services.data.map((service) => (
+            <li key={service.id}>
+              <Link
+                to="/conductor/$id"
+                params={{ id: service.id }}
+                className="block rounded-2xl border bg-card p-4 shadow-card transition active:scale-[0.99]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">{service.reference}</p>
+                    <p className="mt-1 font-display text-lg font-semibold">{service.origin.name}</p>
+                    <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" /> {service.destination.name}
+                    </p>
+                  </div>
+                  <ChevronRight className="mt-2 h-6 w-6 text-muted-foreground" />
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <ApiStatus status={service.status} />
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <CalendarClock className="h-4 w-4" /> {fmtDateTime(service.plannedPickup)}
+                  </span>
+                </div>
+                <p className="mt-3 flex items-center gap-2 border-t pt-3 text-sm font-medium">
+                  <Truck className="h-4 w-4 text-primary" />
+                  {service.assignment?.vehiclePlate ?? "Vehículo pendiente"}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          title="Sin servicios asignados"
+          text="Operaciones te avisará cuando tengas un nuevo servicio."
+        />
+      )}
     </div>
+  );
+}
+
+function DriverMessage({
+  icon,
+  title,
+  text,
+  action,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  text: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <Panel className="mt-8 p-6 text-center">
+      {icon && <div className="mx-auto mb-3 w-fit text-muted-foreground">{icon}</div>}
+      <h1 className="text-xl font-semibold">{title}</h1>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
+      {action && <div className="mt-5">{action}</div>}
+    </Panel>
   );
 }

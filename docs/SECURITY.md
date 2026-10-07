@@ -2,11 +2,11 @@
 
 ## Estado actual
 
-El backend de `backend/` aplica autorización y aislamiento de organización en servidor para el primer flujo operativo: pedidos, servicios, asignaciones, conductores y vehículos. La pertenencia, el rol y la organización se validan contra PostgreSQL antes de ejecutar cada operación. Los eventos y cambios auditables de este flujo se persisten en la misma transacción.
+El backend de `backend/` aplica autorización y aislamiento de organización en servidor para pedidos, servicios, asignaciones, conductores, vehículos y aceptación del conductor. La pertenencia, el rol y la organización se validan contra PostgreSQL antes de ejecutar cada operación. Los eventos y cambios auditables de este flujo se persisten en la misma transacción.
 
 La identidad usa email y contraseña. Las contraseñas se almacenan con `scrypt` y salt aleatorio. Las sesiones tienen token opaco de 256 bits, hash persistido, caducidad absoluta y revocación server-side. La cookie es `HttpOnly`, `SameSite=Lax`, limitada a `/` y añade `Secure` en producción. El frontend no guarda tokens en `localStorage` ni `sessionStorage`.
 
-El login limita intentos por IP y email durante una ventana de 15 minutos y devuelve el mismo error para email inexistente o contraseña incorrecta. Los logs redactan cookies, autorización y passwords. CORS acepta el origen configurado con credenciales, y las mutaciones rechazan orígenes distintos y peticiones `cross-site`. Las cabeceras DEV ya no autentican ni cambian usuario, rol u organización.
+El login limita intentos por IP y email durante una ventana de 15 minutos y devuelve el mismo error para email inexistente o contraseña incorrecta. Los logs redactan cookies, autorización y passwords. CORS acepta el origen web y la lista exacta de orígenes internos de Capacitor. Las mutaciones web rechazan peticiones `cross-site`; mobile-login y peticiones Bearer solo se admiten desde esos orígenes permitidos. No se usan comodines. Las cabeceras DEV ya no autentican ni cambian usuario, rol u organización.
 
 La clave de Google Maps llega al navegador por diseño: restringirla por referrer y API en Google Cloud. No debe otorgar acceso a APIs adicionales ni reutilizarse como secreto de servidor.
 
@@ -38,6 +38,10 @@ El webhook GES de demo usa secreto compartido y recibe un evento normalizado de 
 
 Ampliar las mismas reglas a documentos, tracking, facturación, notificaciones y procesos en background. Añadir restricciones/RLS en DB como segunda barrera. Los tokens futuros de tracking de cliente deberán ser aleatorios, solo lectura, por servicio y revocables.
 
-## Cliente móvil futuro
+## Cliente móvil implementado
 
-La sesión opaca es independiente del transporte. La web usa cookie `HttpOnly`; un futuro cliente Capacitor deberá usar almacenamiento seguro del sistema y un transporte móvil explícito, manteniendo la misma expiración, revocación y RBAC. No se debe copiar el token a `localStorage`.
+Capacitor ejecuta la UI desde un origen WebView distinto al API. La cookie `SameSite=Lax` de la web no ofrece persistencia same-site fiable en ese escenario, por lo que la app usa Bearer sin cambiar el modelo de sesión. El token sigue siendo opaco y revocable, el backend guarda solo el hash y `/auth/me` no lo expone.
+
+En iOS se almacena en Keychain. En Android se cifra con AES-GCM usando una clave de Android Keystore. El adaptador no se invoca en web, donde continúa la cookie `HttpOnly`; nunca se guarda token o contraseña en `localStorage`. La API es configurable por build, no contiene secretos y producción exige HTTPS.
+
+La app restringe su navegación a conductor, pero esta medida es UX y reducción de superficie. El backend valida rol, membership, organización, vínculo `Driver.userId` y `Assignment` activo en cada petición. Con conectividad, logout revoca la sesión en servidor antes de borrar el token local. Sin conectividad, la app elimina el token del dispositivo para cerrar la sesión local; la sesión remota conserva su caducidad o puede revocarse administrativamente.

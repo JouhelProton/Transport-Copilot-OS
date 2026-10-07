@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@/lib/auth/session";
+import { apiFetch } from "@/lib/platform/api-client";
 
 export interface ApiLocation {
   name: string;
@@ -15,6 +16,7 @@ export interface ApiAssignment {
   vehicleId: string;
   vehiclePlate: string;
   assignedAt?: string;
+  acceptedAt?: string | null;
 }
 
 export interface ApiOrder {
@@ -34,10 +36,12 @@ export interface ApiOrder {
   plannedDelivery: string;
   status: "SUBMITTED" | "ACCEPTED";
   acceptedAt: string | null;
-  service: { id: string; status: "PLANNED" | "ASSIGNED"; assignment: ApiAssignment | null } | null;
+  service: { id: string; status: ServiceStatus; assignment: ApiAssignment | null } | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export type ServiceStatus = "PLANNED" | "ASSIGNED" | "DRIVER_ACCEPTED";
 
 export interface ApiService {
   id: string;
@@ -55,7 +59,7 @@ export interface ApiService {
   tempMax: number | null;
   plannedPickup: string;
   plannedDelivery: string;
-  status: "PLANNED" | "ASSIGNED";
+  status: ServiceStatus;
   assignment: ApiAssignment | null;
   events: Array<{
     id: string;
@@ -65,6 +69,24 @@ export interface ApiService {
     payload: unknown;
   }>;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiDriverService {
+  id: string;
+  orderId: string;
+  reference: string;
+  origin: ApiLocation;
+  destination: ApiLocation;
+  cargo: string;
+  pallets: number;
+  tempMin: number | null;
+  tempMax: number | null;
+  plannedPickup: string;
+  plannedDelivery: string;
+  status: ServiceStatus;
+  assignment: ApiAssignment | null;
+  events: ApiService["events"];
   updatedAt: string;
 }
 
@@ -97,25 +119,9 @@ export interface CreateOrderInput {
   plannedDelivery: string;
 }
 
-interface ApiErrorBody {
-  error?: { message?: string };
-}
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3001").replace(/\/$/, "");
-
 async function apiRequest<T>(session: Session, path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}/api/v1${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      ...(init?.body ? { "content-type": "application/json" } : {}),
-      ...init?.headers,
-    },
-  });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
-    throw new Error(body.error?.message ?? `Error del backend (${response.status})`);
-  }
+  void session;
+  const response = await apiFetch(path, init);
   return response.json() as Promise<T>;
 }
 
@@ -138,6 +144,31 @@ export function useApiServices(session: Session) {
       apiRequest<{ data: ApiService[] }>(session, "/services").then((result) => result.data),
     enabled: enabledInBrowser(),
     refetchOnWindowFocus: true,
+  });
+}
+
+export function useDriverApiServices(session: Session, online: boolean) {
+  return useQuery({
+    queryKey: ["api", session.organizationId, session.userId, "driver-services"],
+    queryFn: () =>
+      apiRequest<{ data: ApiDriverService[] }>(session, "/driver/services").then(
+        (result) => result.data,
+      ),
+    enabled: enabledInBrowser() && online,
+    retry: false,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useDriverApiService(session: Session, serviceId: string, online: boolean) {
+  return useQuery({
+    queryKey: ["api", session.organizationId, session.userId, "driver-services", serviceId],
+    queryFn: () =>
+      apiRequest<{ data: ApiDriverService }>(session, `/driver/services/${serviceId}`).then(
+        (result) => result.data,
+      ),
+    enabled: enabledInBrowser() && online,
+    retry: false,
   });
 }
 
@@ -213,5 +244,24 @@ export function useAssignService(session: Session) {
         body: JSON.stringify({ driverId, vehicleId }),
       }).then((result) => result.data),
     onSuccess: refresh,
+  });
+}
+
+export function useAcceptDriverService(session: Session) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (serviceId: string) =>
+      apiRequest<{ data: ApiDriverService }>(session, `/driver/services/${serviceId}/accept`, {
+        method: "POST",
+      }).then((result) => result.data),
+    onSuccess: async (service) => {
+      queryClient.setQueryData(
+        ["api", session.organizationId, session.userId, "driver-services", service.id],
+        service,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["api", session.organizationId, session.userId, "driver-services"],
+      });
+    },
   });
 }
