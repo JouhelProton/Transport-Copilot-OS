@@ -11,6 +11,16 @@ const envSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
   CORS_ORIGIN: z.string().url().default("http://127.0.0.1:4176"),
+  SESSION_COOKIE_NAME: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .default("transport_copilot_session"),
+  SESSION_TTL_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 30)
+    .default(8),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

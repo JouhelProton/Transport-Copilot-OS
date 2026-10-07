@@ -6,22 +6,45 @@
 - JSON UTF-8 y fechas RFC 3339 UTC.
 - Error: `{ "error": { "code": "...", "message": "...", "details": [], "requestId": "..." } }`.
 - Validación de entrada con Zod y autorización de rol/tenant en servidor.
-- La autenticación DEV requiere `x-dev-user-id` y `x-organization-id`. Es reemplazable y no es apta para Internet.
+- La autenticación web usa la cookie de sesión `HttpOnly`; el frontend envía peticiones con credenciales incluidas.
+- La organización activa procede de la `Membership` guardada en la sesión. Los headers DEV se ignoran.
+- Mutaciones desde navegador deben proceder del origen permitido; la cookie usa `SameSite=Lax` y `Secure` en producción.
 
 ## Endpoints implementados
 
-| Método y ruta                      | Roles / alcance                                          | Resultado                                                            |
-| ---------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
-| `GET /health`                      | Público                                                  | Estado del proceso.                                                  |
-| `POST /api/v1/orders`              | `CUSTOMER` o roles internos                              | Crea `Order`, `ORDER_CREATED` y auditoría.                           |
-| `GET /api/v1/orders`               | Cliente participante o transportista destinatario        | Lista aislada por tenant y relación.                                 |
-| `GET /api/v1/orders/:id`           | Igual que lista                                          | Detalle autorizado; `404` para terceros.                             |
-| `POST /api/v1/orders/:id/accept`   | Admin, tráfico u operaciones del transportista           | Acepta pedido y crea `Service` de forma transaccional.               |
-| `GET /api/v1/services`             | Cliente participante, transportista o conductor asignado | Lista de servicios autorizados.                                      |
-| `GET /api/v1/services/:id`         | Igual que lista                                          | Detalle, asignación y eventos.                                       |
-| `POST /api/v1/services/:id/assign` | Admin o tráfico del transportista                        | Crea/reemplaza `Assignment`; valida conductor y vehículo del tenant. |
-| `GET /api/v1/drivers`              | Roles internos del transportista                         | Conductores de la organización actual.                               |
-| `GET /api/v1/vehicles`             | Roles internos del transportista                         | Vehículos de la organización actual.                                 |
+| Método y ruta                           | Roles / alcance                                          | Resultado                                                            |
+| --------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET /health`                           | Público                                                  | Estado del proceso.                                                  |
+| `POST /api/v1/auth/login`               | Público con rate limit                                   | Valida credenciales, crea sesión y cookie.                           |
+| `POST /api/v1/auth/logout`              | Sesión opcional                                          | Revoca la sesión y elimina la cookie.                                |
+| `GET /api/v1/auth/me`                   | Sesión                                                   | Identidad, memberships, organización activa, rol y permisos.         |
+| `POST /api/v1/auth/switch-organization` | Sesión                                                   | Cambia a una membership verificada del mismo usuario.                |
+| `POST /api/v1/orders`                   | `CUSTOMER` o roles internos                              | Crea `Order`, `ORDER_CREATED` y auditoría.                           |
+| `GET /api/v1/orders`                    | Cliente participante o transportista destinatario        | Lista aislada por tenant y relación.                                 |
+| `GET /api/v1/orders/:id`                | Igual que lista                                          | Detalle autorizado; `404` para terceros.                             |
+| `POST /api/v1/orders/:id/accept`        | Admin, tráfico u operaciones del transportista           | Acepta pedido y crea `Service` de forma transaccional.               |
+| `GET /api/v1/services`                  | Cliente participante, transportista o conductor asignado | Lista de servicios autorizados.                                      |
+| `GET /api/v1/services/:id`              | Igual que lista                                          | Detalle, asignación y eventos.                                       |
+| `POST /api/v1/services/:id/assign`      | Admin o tráfico del transportista                        | Crea/reemplaza `Assignment`; valida conductor y vehículo del tenant. |
+| `GET /api/v1/drivers`                   | Roles internos del transportista                         | Conductores de la organización actual.                               |
+| `GET /api/v1/vehicles`                  | Roles internos del transportista                         | Vehículos de la organización actual.                                 |
+
+## Autenticación
+
+```json
+POST /api/v1/auth/login
+{
+  "email": "cliente@demo.nexo.local",
+  "password": "Demo-Transport-2026!"
+}
+```
+
+`GET /api/v1/auth/me` no devuelve hashes ni tokens. Incluye `user`, `activeMembership`, `memberships`, `permissions`, `expiresAt` y, cuando corresponde, `customerId` o `driverId`.
+
+```json
+POST /api/v1/auth/switch-organization
+{ "membershipId": "membership-validada" }
+```
 
 ## Crear pedido
 

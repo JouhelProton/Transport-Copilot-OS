@@ -1,11 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Database } from "../../plugins/prisma.js";
-import {
-  createAuthenticate,
-  ORDER_ACCEPT_ROLES,
-  requireRoles,
-  TRANSPORT_ROLES,
-} from "../auth/auth.js";
+import type { AppConfig } from "../../config/env.js";
+import { createAuthenticate, requirePermission } from "../auth/auth.js";
 import { conflict, forbidden, notFound } from "../../shared/errors.js";
 import { presentOrder, presentService } from "../../shared/presenters.js";
 import { createOrderSchema, idParamsSchema } from "./schemas.js";
@@ -18,12 +14,12 @@ const orderInclude = {
 } as const;
 
 function orderVisibility(auth: NonNullable<FastifyRequest["auth"]>) {
-  if (auth.role === "CUSTOMER")
+  if (auth.actorKind === "customer")
     return {
       organizationId: auth.organizationId,
       customerId: auth.customerId ?? "__none__",
     };
-  if (TRANSPORT_ROLES.includes(auth.role))
+  if (auth.actorKind === "transport")
     return { carrierOrganizationId: auth.organizationId };
   throw forbidden();
 }
@@ -33,15 +29,16 @@ import type { FastifyRequest } from "fastify";
 export async function registerOrderRoutes(
   app: FastifyInstance,
   database: Database,
+  config: AppConfig,
 ) {
-  const authenticate = createAuthenticate(database);
+  const authenticate = createAuthenticate(database, config);
 
   app.post("/orders", { preHandler: authenticate }, async (request, reply) => {
-    const auth = requireRoles(request, ["CUSTOMER", ...TRANSPORT_ROLES]);
+    const auth = requirePermission(request, "orders:create");
     const input = createOrderSchema.parse(request.body);
 
     const customer =
-      auth.role === "CUSTOMER"
+      auth.actorKind === "customer"
         ? await database.customer.findFirst({
             where: {
               id: auth.customerId ?? "__none__",
@@ -61,7 +58,7 @@ export async function registerOrderRoutes(
         "No existe una relación comercial autorizada con ese transportista",
       );
     if (
-      auth.role !== "CUSTOMER" &&
+      auth.actorKind !== "customer" &&
       input.carrierOrganizationId !== auth.organizationId
     )
       throw forbidden(
@@ -69,7 +66,7 @@ export async function registerOrderRoutes(
       );
 
     const correlationId = request.id;
-    const order = await database.$transaction(async (tx) => {
+    const orderId = await database.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
           organizationId: customer.customerOrganizationId,
@@ -122,17 +119,18 @@ export async function registerOrderRoutes(
           },
         },
       });
-      return tx.order.findUniqueOrThrow({
-        where: { id: created.id },
-        include: orderInclude,
-      });
+      return created.id;
+    });
+    const order = await database.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: orderInclude,
     });
 
     return reply.code(201).send({ data: presentOrder(order) });
   });
 
   app.get("/orders", { preHandler: authenticate }, async (request) => {
-    const auth = request.auth!;
+    const auth = requirePermission(request, "orders:read");
     const orders = await database.order.findMany({
       where: orderVisibility(auth),
       include: orderInclude,
@@ -142,7 +140,7 @@ export async function registerOrderRoutes(
   });
 
   app.get("/orders/:id", { preHandler: authenticate }, async (request) => {
-    const auth = request.auth!;
+    const auth = requirePermission(request, "orders:read");
     const { id } = idParamsSchema.parse(request.params);
     const order = await database.order.findFirst({
       where: { id, ...orderVisibility(auth) },
@@ -156,7 +154,7 @@ export async function registerOrderRoutes(
     "/orders/:id/accept",
     { preHandler: authenticate },
     async (request, reply) => {
-      const auth = requireRoles(request, ORDER_ACCEPT_ROLES);
+      const auth = requirePermission(request, "orders:accept");
       const { id } = idParamsSchema.parse(request.params);
       const existing = await database.order.findFirst({
         where: { id, carrierOrganizationId: auth.organizationId },
@@ -166,7 +164,7 @@ export async function registerOrderRoutes(
       if (existing.status === "ACCEPTED" || existing.service)
         throw conflict("ORDER_ALREADY_ACCEPTED", "El pedido ya está aceptado");
 
-      const service = await database.$transaction(async (tx) => {
+      const serviceId = await database.$transaction(async (tx) => {
         await tx.order.update({
           where: { id },
           data: { status: "ACCEPTED", acceptedAt: new Date() },
@@ -179,31 +177,31 @@ export async function registerOrderRoutes(
             orderId: existing.id,
           },
         });
-        await tx.serviceEvent.createMany({
-          data: [
-            {
-              organizationId: auth.organizationId,
-              orderId: existing.id,
-              serviceId: created.id,
-              type: "ORDER_ACCEPTED",
-              entityType: "Order",
-              entityId: existing.id,
-              actorUserId: auth.userId,
-              correlationId: request.id,
-              payload: { serviceId: created.id },
-            },
-            {
-              organizationId: auth.organizationId,
-              orderId: existing.id,
-              serviceId: created.id,
-              type: "SERVICE_CREATED",
-              entityType: "Service",
-              entityId: created.id,
-              actorUserId: auth.userId,
-              correlationId: request.id,
-              payload: { orderId: existing.id },
-            },
-          ],
+        await tx.serviceEvent.create({
+          data: {
+            organizationId: auth.organizationId,
+            orderId: existing.id,
+            serviceId: created.id,
+            type: "ORDER_ACCEPTED",
+            entityType: "Order",
+            entityId: existing.id,
+            actorUserId: auth.userId,
+            correlationId: request.id,
+            payload: { serviceId: created.id },
+          },
+        });
+        await tx.serviceEvent.create({
+          data: {
+            organizationId: auth.organizationId,
+            orderId: existing.id,
+            serviceId: created.id,
+            type: "SERVICE_CREATED",
+            entityType: "Service",
+            entityId: created.id,
+            actorUserId: auth.userId,
+            correlationId: request.id,
+            payload: { orderId: existing.id },
+          },
         });
         await tx.auditLog.create({
           data: {
@@ -216,15 +214,16 @@ export async function registerOrderRoutes(
             metadata: { serviceId: created.id, role: auth.role },
           },
         });
-        return tx.service.findUniqueOrThrow({
-          where: { id: created.id },
-          include: {
-            order: true,
-            customer: true,
-            assignments: { include: { driver: true, vehicle: true } },
-            events: true,
-          },
-        });
+        return created.id;
+      });
+      const service = await database.service.findUniqueOrThrow({
+        where: { id: serviceId },
+        include: {
+          order: true,
+          customer: true,
+          assignments: { include: { driver: true, vehicle: true } },
+          events: true,
+        },
       });
 
       return reply.code(201).send({ data: presentService(service) });

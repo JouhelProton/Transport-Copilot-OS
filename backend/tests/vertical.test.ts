@@ -8,23 +8,30 @@ const config = loadConfig({ ...process.env, NODE_ENV: "test" });
 const database = createPrismaClient(config.DATABASE_URL);
 const app = await buildApp(config, database);
 
-const customerHeaders = {
-  "x-dev-user-id": "u_cust",
-  "x-organization-id": "org_nova",
-};
-const carrierHeaders = {
-  "x-dev-user-id": "u_admin",
-  "x-organization-id": "org_tvd",
-};
-const otherHeaders = {
-  "x-dev-user-id": "u_other",
-  "x-organization-id": "org_other",
-};
+const PASSWORD = "Demo-Transport-2026!";
+let customerHeaders: { cookie: string };
+let carrierHeaders: { cookie: string };
+let otherHeaders: { cookie: string };
 let createdOrderId = "";
 let createdServiceId = "";
 
 beforeAll(async () => {
   await app.ready();
+  const authenticate = async (email: string) => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email, password: PASSWORD },
+    });
+    expect(response.statusCode).toBe(200);
+    const raw = response.headers["set-cookie"];
+    const cookie = (Array.isArray(raw) ? raw[0] : raw)?.split(";")[0];
+    if (!cookie) throw new Error("Login sin cookie");
+    return { cookie };
+  };
+  customerHeaders = await authenticate("cliente@demo.nexo.local");
+  carrierHeaders = await authenticate("admin@demo.nexo.local");
+  otherHeaders = await authenticate("norte@demo.nexo.local");
 });
 
 afterAll(async () => {
@@ -49,6 +56,8 @@ afterAll(async () => {
     });
     await database.order.deleteMany({ where: { id: createdOrderId } });
   }
+  await database.session.deleteMany();
+  await database.auditLog.deleteMany({ where: { entityType: "Session" } });
   await app.close();
   await database.$disconnect();
 });

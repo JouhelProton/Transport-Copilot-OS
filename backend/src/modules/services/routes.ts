@@ -1,11 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Database } from "../../plugins/prisma.js";
-import {
-  ASSIGN_ROLES,
-  createAuthenticate,
-  requireRoles,
-  TRANSPORT_ROLES,
-} from "../auth/auth.js";
+import type { AppConfig } from "../../config/env.js";
+import { createAuthenticate, requirePermission } from "../auth/auth.js";
 import { conflict, forbidden, notFound } from "../../shared/errors.js";
 import { presentService } from "../../shared/presenters.js";
 import { idParamsSchema } from "../orders/schemas.js";
@@ -22,12 +18,12 @@ const serviceInclude = {
 } as const;
 
 function serviceVisibility(auth: NonNullable<FastifyRequest["auth"]>) {
-  if (auth.role === "CUSTOMER")
+  if (auth.actorKind === "customer")
     return {
       customerOrganizationId: auth.organizationId,
       customerId: auth.customerId ?? "__none__",
     };
-  if (auth.role === "DRIVER")
+  if (auth.actorKind === "driver")
     return {
       organizationId: auth.organizationId,
       assignments: {
@@ -37,7 +33,7 @@ function serviceVisibility(auth: NonNullable<FastifyRequest["auth"]>) {
         },
       },
     };
-  if (TRANSPORT_ROLES.includes(auth.role))
+  if (auth.actorKind === "transport")
     return { organizationId: auth.organizationId };
   throw forbidden();
 }
@@ -45,10 +41,12 @@ function serviceVisibility(auth: NonNullable<FastifyRequest["auth"]>) {
 export async function registerServiceRoutes(
   app: FastifyInstance,
   database: Database,
+  config: AppConfig,
 ) {
-  const authenticate = createAuthenticate(database);
+  const authenticate = createAuthenticate(database, config);
 
   app.get("/services", { preHandler: authenticate }, async (request) => {
+    requirePermission(request, "services:read");
     const services = await database.service.findMany({
       where: serviceVisibility(request.auth!),
       include: serviceInclude,
@@ -58,6 +56,7 @@ export async function registerServiceRoutes(
   });
 
   app.get("/services/:id", { preHandler: authenticate }, async (request) => {
+    requirePermission(request, "services:read");
     const { id } = idParamsSchema.parse(request.params);
     const service = await database.service.findFirst({
       where: { id, ...serviceVisibility(request.auth!) },
@@ -71,7 +70,7 @@ export async function registerServiceRoutes(
     "/services/:id/assign",
     { preHandler: authenticate },
     async (request) => {
-      const auth = requireRoles(request, ASSIGN_ROLES);
+      const auth = requirePermission(request, "services:assign");
       const { id } = idParamsSchema.parse(request.params);
       const input = assignServiceSchema.parse(request.body);
 
@@ -111,7 +110,7 @@ export async function registerServiceRoutes(
           "El servicio ya tiene esa asignación activa",
         );
 
-      const assigned = await database.$transaction(async (tx) => {
+      await database.$transaction(async (tx) => {
         await tx.assignment.updateMany({
           where: {
             serviceId: id,
@@ -133,31 +132,31 @@ export async function registerServiceRoutes(
           where: { id },
           data: { status: "ASSIGNED" },
         });
-        await tx.serviceEvent.createMany({
-          data: [
-            {
-              organizationId: auth.organizationId,
-              serviceId: id,
-              orderId: service.orderId,
-              type: "DRIVER_ASSIGNED",
-              entityType: "Service",
-              entityId: id,
-              actorUserId: auth.userId,
-              correlationId: request.id,
-              payload: { assignmentId: assignment.id, driverId: driver.id },
-            },
-            {
-              organizationId: auth.organizationId,
-              serviceId: id,
-              orderId: service.orderId,
-              type: "VEHICLE_ASSIGNED",
-              entityType: "Service",
-              entityId: id,
-              actorUserId: auth.userId,
-              correlationId: request.id,
-              payload: { assignmentId: assignment.id, vehicleId: vehicle.id },
-            },
-          ],
+        await tx.serviceEvent.create({
+          data: {
+            organizationId: auth.organizationId,
+            serviceId: id,
+            orderId: service.orderId,
+            type: "DRIVER_ASSIGNED",
+            entityType: "Service",
+            entityId: id,
+            actorUserId: auth.userId,
+            correlationId: request.id,
+            payload: { assignmentId: assignment.id, driverId: driver.id },
+          },
+        });
+        await tx.serviceEvent.create({
+          data: {
+            organizationId: auth.organizationId,
+            serviceId: id,
+            orderId: service.orderId,
+            type: "VEHICLE_ASSIGNED",
+            entityType: "Service",
+            entityId: id,
+            actorUserId: auth.userId,
+            correlationId: request.id,
+            payload: { assignmentId: assignment.id, vehicleId: vehicle.id },
+          },
         });
         await tx.auditLog.create({
           data: {
@@ -174,10 +173,10 @@ export async function registerServiceRoutes(
             },
           },
         });
-        return tx.service.findUniqueOrThrow({
-          where: { id },
-          include: serviceInclude,
-        });
+      });
+      const assigned = await database.service.findUniqueOrThrow({
+        where: { id },
+        include: serviceInclude,
       });
       return { data: presentService(assigned) };
     },

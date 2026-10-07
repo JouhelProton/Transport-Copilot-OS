@@ -1,95 +1,194 @@
-/**
- * Autenticación DEMO — claramente separada de la autenticación real.
- * La futura autenticación real (Lovable Cloud) implementará `AuthProvider`
- * con contraseñas gestionadas solo por el proveedor y roles en tabla aparte.
- */
 import { useSyncExternalStore } from "react";
 import { z } from "zod";
-import { getState } from "@/lib/domain/demo-backend";
 import { PORTAL_ROLES, type Portal, type Role } from "@/lib/domain/types";
+
+export type Permission =
+  | "orders:create"
+  | "orders:read"
+  | "orders:accept"
+  | "services:read"
+  | "services:assign"
+  | "drivers:read"
+  | "vehicles:read";
+
+export interface SessionMembership {
+  id: string;
+  role: Role;
+  organization: { id: string; name: string; kind?: "CARRIER" | "SHIPPER" };
+  permissions: Permission[];
+}
 
 export interface Session {
   userId: string;
   name: string;
   email: string;
+  membershipId: string;
   role: Role;
   organizationId: string;
+  organizationName: string;
+  permissions: Permission[];
+  memberships: SessionMembership[];
+  expiresAt: string;
+  customerId?: string;
   driverId?: string;
-  mode: "DEMO";
+  mode: "SESSION";
 }
 
-export interface AuthProvider {
-  signIn(portal: Portal, email: string, password: string): Promise<{ ok: true; session: Session } | { ok: false; error: string }>;
-  signOut(): Promise<void>;
-  requestPasswordReset(email: string): Promise<{ ok: boolean; message: string }>;
+interface AuthPayload {
+  user: { id: string; name: string; email: string };
+  activeMembership: SessionMembership;
+  memberships: SessionMembership[];
+  permissions: Permission[];
+  expiresAt: string;
+  customerId?: string;
+  driverId?: string;
 }
 
-const KEY = "nexo-demo-session";
+interface ApiErrorBody {
+  error?: { message?: string };
+}
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3001").replace(/\/$/, "");
 const listeners = new Set<() => void>();
-let cached: Session | null | undefined;
+let current: Session | null = null;
+let pendingLoad: Promise<Session | null> | null = null;
 
-export function getSession(): Session | null {
-  if (typeof window === "undefined") return null;
-  if (cached !== undefined) return cached;
-  try {
-    cached = JSON.parse(window.sessionStorage.getItem(KEY) ?? "null");
-  } catch {
-    cached = null;
-  }
-  return cached ?? null;
+function publish(session: Session | null) {
+  current = session;
+  listeners.forEach((listener) => listener());
 }
 
-function setSession(s: Session | null) {
-  cached = s;
-  if (s) window.sessionStorage.setItem(KEY, JSON.stringify(s));
-  else window.sessionStorage.removeItem(KEY);
-  listeners.forEach((l) => l());
+function normalize(data: AuthPayload): Session {
+  return {
+    userId: data.user.id,
+    name: data.user.name,
+    email: data.user.email,
+    membershipId: data.activeMembership.id,
+    role: data.activeMembership.role,
+    organizationId: data.activeMembership.organization.id,
+    organizationName: data.activeMembership.organization.name,
+    permissions: data.permissions,
+    memberships: data.memberships,
+    expiresAt: data.expiresAt,
+    ...(data.customerId ? { customerId: data.customerId } : {}),
+    ...(data.driverId ? { driverId: data.driverId } : {}),
+    mode: "SESSION",
+  };
+}
+
+async function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}/api/v1/auth${path}`, {
+    ...init,
+    credentials: "include",
+    headers: { ...(init?.body ? { "content-type": "application/json" } : {}), ...init?.headers },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    throw new Error(body.error?.message ?? `Error de autenticación (${response.status})`);
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+export const loginSchema = z.object({
+  email: z.string().trim().email("Introduce un email válido").max(255),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(256),
+});
+
+export function getSession() {
+  return current;
+}
+
+export async function ensureSession(force = false): Promise<Session | null> {
+  if (current && !force) return current;
+  if (pendingLoad) return pendingLoad;
+  pendingLoad = authRequest<{ data: AuthPayload }>("/me")
+    .then(({ data }) => {
+      const session = normalize(data);
+      publish(session);
+      return session;
+    })
+    .catch(() => {
+      publish(null);
+      return null;
+    })
+    .finally(() => {
+      pendingLoad = null;
+    });
+  return pendingLoad;
 }
 
 export function useSession() {
   return useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
-    getSession,
+    () => current,
     () => null,
   );
 }
-
-export const loginSchema = z.object({
-  email: z.string().trim().min(1, "Introduce tu email o usuario").max(255),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").max(128),
-});
 
 export function canAccess(session: Session | null, portal: Portal) {
   return !!session && PORTAL_ROLES[portal].includes(session.role);
 }
 
-export const demoAuth: AuthProvider = {
-  async signIn(portal, email, password) {
+export const auth = {
+  async signIn(portal: Portal, email: string, password: string) {
     const parsed = loginSchema.safeParse({ email, password });
-    if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-    const user = getState().users.find((u) => u.email.toLowerCase() === parsed.data.email.toLowerCase());
-    if (!user) return { ok: false, error: "No existe un usuario DEMO con ese email." };
-    if (!PORTAL_ROLES[portal].includes(user.role))
-      return { ok: false, error: "Este usuario no tiene permisos para este portal. Usa el acceso correspondiente a tu rol." };
-    const session: Session = {
-      userId: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
-      driverId: user.driverId,
-      mode: "DEMO",
-    };
-    setSession(session);
-    return { ok: true, session };
+    if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message };
+    try {
+      const { data } = await authRequest<{ data: AuthPayload }>("/login", {
+        method: "POST",
+        body: JSON.stringify(parsed.data),
+      });
+      const session = normalize(data);
+      if (!canAccess(session, portal)) {
+        await authRequest<void>("/logout", { method: "POST" });
+        publish(null);
+        return { ok: false as const, error: "Este usuario no tiene permisos para este portal." };
+      }
+      publish(session);
+      const verifiedSession = await ensureSession(true);
+      if (!verifiedSession)
+        return { ok: false as const, error: "No se pudo verificar la sesión creada" };
+      return { ok: true as const, session: verifiedSession };
+    } catch (error) {
+      return {
+        ok: false as const,
+        error: error instanceof Error ? error.message : "No se pudo iniciar sesión",
+      };
+    }
   },
   async signOut() {
-    setSession(null);
+    try {
+      await authRequest<void>("/logout", { method: "POST" });
+    } finally {
+      publish(null);
+    }
+  },
+  async switchOrganization(membershipId: string) {
+    await authRequest("/switch-organization", {
+      method: "POST",
+      body: JSON.stringify({ membershipId }),
+    });
+    return ensureSession(true);
   },
   async requestPasswordReset() {
-    return { ok: true, message: "Modo DEMO: no se envía ningún email. Con la autenticación real recibirás un enlace de recuperación." };
+    return {
+      ok: false,
+      message: "La recuperación de contraseña se habilitará en un hito posterior.",
+    };
   },
 };
+
+export const DEV_ACCOUNTS: Record<Portal, Array<{ name: string; email: string; role: Role }>> = {
+  cliente: [{ name: "Laura Pérez", email: "cliente@demo.nexo.local", role: "CUSTOMER" }],
+  transportista: [
+    { name: "Andrés Martí", email: "admin@demo.nexo.local", role: "TRANSPORT_ADMIN" },
+    { name: "Sara Ruiz", email: "trafico@demo.nexo.local", role: "DISPATCHER" },
+  ],
+  conductor: [{ name: "Miguel García", email: "conductor@demo.nexo.local", role: "DRIVER" }],
+};
+
+export const DEV_PASSWORD = "Demo-Transport-2026!";

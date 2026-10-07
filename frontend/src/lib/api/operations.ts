@@ -106,10 +106,9 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:3001").
 async function apiRequest<T>(session: Session, path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}/api/v1${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       ...(init?.body ? { "content-type": "application/json" } : {}),
-      "x-dev-user-id": session.userId,
-      "x-organization-id": session.organizationId,
       ...init?.headers,
     },
   });

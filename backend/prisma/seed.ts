@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.js";
+import { hashPassword } from "../src/modules/auth/password.js";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString)
@@ -10,6 +11,9 @@ const database = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),
 });
 
+const DEMO_PASSWORD = "Demo-Transport-2026!";
+const passwordHash = await hashPassword(DEMO_PASSWORD);
+
 const pickup = new Date();
 pickup.setDate(pickup.getDate() + 1);
 pickup.setHours(8, 0, 0, 0);
@@ -17,6 +21,7 @@ const delivery = new Date(pickup);
 delivery.setHours(16, 30, 0, 0);
 
 await database.$transaction(async (tx) => {
+  await tx.session.deleteMany();
   await tx.auditLog.deleteMany();
   await tx.serviceEvent.deleteMany();
   await tx.assignment.deleteMany();
@@ -43,36 +48,49 @@ await database.$transaction(async (tx) => {
         id: "u_cust",
         name: "Laura Pérez (DEV)",
         email: "cliente@demo.nexo.local",
+        passwordHash,
       },
       {
         id: "u_admin",
         name: "Andrés Martí (DEV)",
         email: "admin@demo.nexo.local",
+        passwordHash,
       },
       {
         id: "u_disp",
         name: "Sara Ruiz (DEV)",
         email: "trafico@demo.nexo.local",
+        passwordHash,
       },
       {
         id: "u_ops",
         name: "Pablo Soler (DEV)",
         email: "operaciones@demo.nexo.local",
+        passwordHash,
       },
       {
         id: "u_acc",
         name: "Elena Vidal (DEV)",
         email: "contabilidad@demo.nexo.local",
+        passwordHash,
       },
       {
         id: "u_drv",
         name: "Miguel García (DEV)",
         email: "conductor@demo.nexo.local",
+        passwordHash,
       },
       {
         id: "u_other",
         name: "Tenant Norte (DEV)",
         email: "norte@demo.nexo.local",
+        passwordHash,
+      },
+      {
+        id: "u_nomembership",
+        name: "Usuario sin organización (DEV)",
+        email: "sin-organizacion@demo.nexo.local",
+        passwordHash,
       },
     ],
   });
@@ -308,5 +326,7 @@ await database.$transaction(async (tx) => {
   });
 });
 
-console.log("Seed completado: vertical principal y tenant aislado creados.");
+console.log(
+  "Seed completado. Credenciales locales: *@demo.nexo.local / Demo-Transport-2026!",
+);
 await database.$disconnect();

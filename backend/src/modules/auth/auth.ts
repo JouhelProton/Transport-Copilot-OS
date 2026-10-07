@@ -1,85 +1,88 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { z } from "zod";
-import type { Database } from "../../plugins/prisma.js";
 import type { Role } from "../../generated/prisma/enums.js";
+import type { AppConfig } from "../../config/env.js";
+import type { Database } from "../../plugins/prisma.js";
 import { forbidden, unauthorized } from "../../shared/errors.js";
-
-const devHeaders = z.object({
-  "x-dev-user-id": z.string().min(1),
-  "x-organization-id": z.string().min(1),
-});
+import { actorKind, permissionsFor, type Permission } from "./rbac.js";
+import {
+  expiredSessionCookie,
+  hashSessionToken,
+  readCookie,
+} from "./session-cookie.js";
 
 export interface AuthContext {
+  sessionId: string;
   userId: string;
   name: string;
   email: string;
+  membershipId: string;
   organizationId: string;
+  organizationName: string;
   role: Role;
+  permissions: Permission[];
+  actorKind: "customer" | "driver" | "transport";
   customerId?: string;
   driverId?: string;
-  mode: "DEV";
+  mode: "SESSION";
 }
 
-export function createAuthenticate(database: Database) {
+export function createAuthenticate(database: Database, config: AppConfig) {
   return async function authenticate(
     request: FastifyRequest,
-    _reply: FastifyReply,
+    reply: FastifyReply,
   ) {
-    const parsed = devHeaders.safeParse(request.headers);
-    if (!parsed.success)
-      throw unauthorized("Faltan las cabeceras de autenticación DEV");
-
-    const membership = await database.membership.findFirst({
-      where: {
-        userId: parsed.data["x-dev-user-id"],
-        organizationId: parsed.data["x-organization-id"],
-      },
+    const rawToken = readCookie(
+      request.headers.cookie,
+      config.SESSION_COOKIE_NAME,
+    );
+    if (!rawToken) throw unauthorized();
+    const now = new Date();
+    const session = await database.session.findUnique({
+      where: { tokenHash: hashSessionToken(rawToken) },
       include: {
+        currentMembership: { include: { organization: true } },
         user: { include: { customer: true, driver: true } },
       },
     });
-    if (!membership)
-      throw unauthorized("Usuario, organización o membresía DEV no válidos");
+    if (!session || session.revokedAt || session.expiresAt <= now) {
+      reply.header("set-cookie", expiredSessionCookie(config));
+      throw unauthorized("La sesión no es válida o ha expirado");
+    }
+    if (session.currentMembership.userId !== session.userId) {
+      reply.header("set-cookie", expiredSessionCookie(config));
+      throw unauthorized("La sesión no es válida");
+    }
+    if (now.getTime() - session.lastUsedAt.getTime() > 5 * 60 * 1000)
+      await database.session.update({
+        where: { id: session.id },
+        data: { lastUsedAt: now },
+      });
 
+    const membership = session.currentMembership;
     request.auth = {
-      userId: membership.user.id,
-      name: membership.user.name,
-      email: membership.user.email,
+      sessionId: session.id,
+      userId: session.user.id,
+      name: session.user.name,
+      email: session.user.email,
+      membershipId: membership.id,
       organizationId: membership.organizationId,
+      organizationName: membership.organization.name,
       role: membership.role,
-      ...(membership.user.customer
-        ? { customerId: membership.user.customer.id }
+      permissions: permissionsFor(membership.role),
+      actorKind: actorKind(membership.role),
+      ...(session.user.customer
+        ? { customerId: session.user.customer.id }
         : {}),
-      ...(membership.user.driver
-        ? { driverId: membership.user.driver.id }
-        : {}),
-      mode: "DEV",
+      ...(session.user.driver ? { driverId: session.user.driver.id } : {}),
+      mode: "SESSION",
     };
   };
 }
 
-export function requireRoles(request: FastifyRequest, roles: readonly Role[]) {
-  if (!request.auth || !roles.includes(request.auth.role)) throw forbidden();
+export function requirePermission(
+  request: FastifyRequest,
+  permission: Permission,
+) {
+  if (!request.auth?.permissions.includes(permission)) throw forbidden();
   return request.auth;
 }
-
-export const TRANSPORT_ROLES: readonly Role[] = [
-  "SUPER_ADMIN",
-  "TRANSPORT_ADMIN",
-  "DISPATCHER",
-  "OPERATIONS",
-  "ACCOUNTING",
-];
-
-export const ORDER_ACCEPT_ROLES: readonly Role[] = [
-  "SUPER_ADMIN",
-  "TRANSPORT_ADMIN",
-  "DISPATCHER",
-  "OPERATIONS",
-];
-
-export const ASSIGN_ROLES: readonly Role[] = [
-  "SUPER_ADMIN",
-  "TRANSPORT_ADMIN",
-  "DISPATCHER",
-];

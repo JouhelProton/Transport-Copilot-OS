@@ -2,18 +2,23 @@ import { createFileRoute, Navigate, Outlet, useNavigate } from "@tanstack/react-
 import { LogOut } from "lucide-react";
 import { DemoBadge, Logo } from "@/components/nexo/ui";
 import { portalGuard } from "@/lib/auth/guard";
-import { demoAuth, useSession } from "@/lib/auth/session";
+import { auth, useSession } from "@/lib/auth/session";
 
 export const Route = createFileRoute("/conductor")({
   ssr: false,
   beforeLoad: portalGuard("conductor"),
-  head: () => ({ meta: [
-    { title: "App conductor — Nexo" },
-    { name: "description", content: "App del conductor: servicio actual, llegada, incidencias, entrega y POD." },
-    { property: "og:title", content: "App conductor — Nexo" },
-    { property: "og:description", content: "App móvil del conductor de Nexo." },
-    { name: "robots", content: "noindex" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "App conductor — Nexo" },
+      {
+        name: "description",
+        content: "App del conductor: servicio actual, llegada, incidencias, entrega y POD.",
+      },
+      { property: "og:title", content: "App conductor — Nexo" },
+      { property: "og:description", content: "App móvil del conductor de Nexo." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: Layout,
 });
 
@@ -27,11 +32,22 @@ function Layout() {
         <Logo to="/conductor" />
         <div className="flex items-center gap-2">
           <DemoBadge />
-          <button aria-label="Cerrar sesión" className="rounded-lg border p-2" onClick={async () => { await demoAuth.signOut(); navigate({ to: "/", replace: true }); }}><LogOut className="h-4 w-4" /></button>
+          <button
+            aria-label="Cerrar sesión"
+            className="rounded-lg border p-2"
+            onClick={async () => {
+              await auth.signOut();
+              navigate({ to: "/", replace: true });
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </header>
       <p className="px-4 pt-4 text-sm text-muted-foreground">Hola, {s?.name}</p>
-      <main className="p-4"><Outlet /></main>
+      <main className="p-4">
+        <Outlet />
+      </main>
     </div>
   );
 }

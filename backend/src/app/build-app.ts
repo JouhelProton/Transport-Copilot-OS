@@ -8,24 +8,45 @@ import { createPrismaClient, type Database } from "../plugins/prisma.js";
 import { registerOrderRoutes } from "../modules/orders/routes.js";
 import { registerServiceRoutes } from "../modules/services/routes.js";
 import { registerResourceRoutes } from "../modules/resources/routes.js";
+import { registerAuthRoutes } from "../modules/auth/routes.js";
+import { forbidden } from "../shared/errors.js";
 
 export async function buildApp(config: AppConfig, providedDatabase?: Database) {
   const database = providedDatabase ?? createPrismaClient(config.DATABASE_URL);
   const app = Fastify({
-    logger: config.NODE_ENV === "test" ? false : { level: config.LOG_LEVEL },
+    logger:
+      config.NODE_ENV === "test"
+        ? false
+        : {
+            level: config.LOG_LEVEL,
+            redact: [
+              "req.headers.cookie",
+              "req.headers.authorization",
+              "request.headers.cookie",
+              "request.headers.authorization",
+              "password",
+              "*.password",
+            ],
+          },
     bodyLimit: 256 * 1024,
     requestIdHeader: "x-request-id",
   });
 
   await app.register(cors, {
     origin: config.CORS_ORIGIN,
+    credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: [
-      "content-type",
-      "x-dev-user-id",
-      "x-organization-id",
-      "x-request-id",
-    ],
+    allowedHeaders: ["content-type", "x-request-id"],
+  });
+
+  app.addHook("onRequest", async (request) => {
+    if (!["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) return;
+    const origin = request.headers.origin;
+    const fetchSite = request.headers["sec-fetch-site"];
+    if (origin && origin !== config.CORS_ORIGIN)
+      throw forbidden("Origen de la petición no permitido");
+    if (fetchSite === "cross-site")
+      throw forbidden("Petición cross-site no permitida");
   });
 
   app.get("/health", async () => ({
@@ -35,24 +56,28 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
 
   await app.register(
     async (api) => {
-      await registerOrderRoutes(api, database);
-      await registerServiceRoutes(api, database);
-      await registerResourceRoutes(api, database);
+      await api.register(
+        async (auth) => registerAuthRoutes(auth, database, config),
+        {
+          prefix: "/auth",
+        },
+      );
+      await registerOrderRoutes(api, database, config);
+      await registerServiceRoutes(api, database, config);
+      await registerResourceRoutes(api, database, config);
     },
     { prefix: "/api/v1" },
   );
 
   app.setNotFoundHandler((request, reply) => {
-    void reply
-      .code(404)
-      .send({
-        error: {
-          code: "ROUTE_NOT_FOUND",
-          message: "Ruta no encontrada",
-          details: [],
-          requestId: request.id,
-        },
-      });
+    void reply.code(404).send({
+      error: {
+        code: "ROUTE_NOT_FOUND",
+        message: "Ruta no encontrada",
+        details: [],
+        requestId: request.id,
+      },
+    });
   });
 
   app.setErrorHandler((error, request, reply) => {

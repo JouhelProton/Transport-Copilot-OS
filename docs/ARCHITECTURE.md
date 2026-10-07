@@ -38,7 +38,7 @@ backend/
     config/              entorno validado con Zod
     generated/prisma/    cliente generado, no versionado
     modules/
-      auth/              autenticación DEV, RBAC y contexto de tenant
+      auth/              passwords, sesiones, cookies, RBAC y tenant activo
       orders/            creación, lectura y aceptación
       services/          lectura y asignaciones
       resources/         conductores y vehículos
@@ -53,9 +53,13 @@ backend/
 
 Las mutaciones compuestas usan transacciones Prisma. El cambio de dominio, `ServiceEvent` y `AuditLog` se escriben juntos. No existe todavía cola/outbox ni trabajadores asíncronos.
 
-## Identidad y tenant
+## Identidad, sesión y tenant
 
-La capa DEV usa `x-dev-user-id` y `x-organization-id`. El servidor valida que exista una `Membership` para esa combinación y obtiene el rol desde PostgreSQL. Las cabeceras nunca conceden un rol ni una membresía inexistentes. Esta capa permite probar RBAC y aislamiento, pero debe sustituirse por un proveedor de identidad antes de producción.
+`User` representa identidad y conserva únicamente un hash `scrypt` de la contraseña. Un login válido crea un token opaco aleatorio; el navegador recibe el token en una cookie `HttpOnly` y PostgreSQL guarda solo su hash SHA-256. `Session` controla expiración, revocación, último uso y la `Membership` activa.
+
+La organización y el rol se derivan siempre de `Session.currentMembershipId`. Cambiar de organización requiere seleccionar una membership perteneciente al usuario. Las antiguas cabeceras `x-dev-user-id` y `x-organization-id` ya no participan en la autenticación. RBAC se centraliza en permisos como `orders:create`, `orders:accept` y `services:assign`.
+
+El transporte actual usa cookie para navegador. El núcleo de sesión opaca y revocable es independiente del transporte, por lo que un futuro cliente Capacitor podrá incorporar un canal móvil protegido sin modificar el modelo de identidad o permisos.
 
 `Order.organizationId` identifica a la organización cliente propietaria del pedido y `carrierOrganizationId` al transportista destinatario. `Service.organizationId` identifica al transportista ejecutor y `customerOrganizationId` al cliente participante. Solo esos participantes explícitos acceden al recurso; un tercer tenant recibe `404`.
 
@@ -66,5 +70,7 @@ La capa DEV usa `x-dev-user-id` y `x-organization-id`. El servidor valida que ex
 3. En `/backend`: generar Prisma, aplicar migraciones y ejecutar el seed.
 4. Iniciar el backend en `127.0.0.1:3001`.
 5. Configurar `VITE_API_BASE_URL=http://127.0.0.1:3001` en `frontend/.env` e iniciar `/frontend`.
+
+El seed local crea usuarios ficticios `*@demo.nexo.local` con contraseña `Demo-Transport-2026!`. Estas credenciales son solo para desarrollo.
 
 Node.js 24 es obligatorio para el backend. PostgreSQL solo se publica en `127.0.0.1:5434` durante desarrollo local.

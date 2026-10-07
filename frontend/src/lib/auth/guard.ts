@@ -1,5 +1,5 @@
 import { redirect } from "@tanstack/react-router";
-import { canAccess, getSession } from "./session";
+import { canAccess, ensureSession } from "./session";
 import type { Portal } from "@/lib/domain/types";
 
 const LOGIN = {
@@ -10,8 +10,8 @@ const LOGIN = {
 
 /** Protección por sesión + rol + organización. Se ejecuta en cliente (ssr:false). */
 export function portalGuard(portal: Portal) {
-  return () => {
-    const s = getSession();
+  return async () => {
+    const s = await ensureSession();
     const to = LOGIN[portal];
     if (!s) throw redirect({ to, search: { motivo: "sesion" } });
     if (!canAccess(s, portal)) throw redirect({ to, search: { motivo: "rol" } });

@@ -21,3 +21,6 @@ export const notFound = (entity: string) =>
   new AppError(404, "NOT_FOUND", `${entity} no encontrado`);
 export const conflict = (code: string, message: string) =>
   new AppError(409, code, message);
+export const tooManyRequests = (
+  message = "Demasiados intentos. Inténtalo de nuevo más tarde",
+) => new AppError(429, "RATE_LIMITED", message);

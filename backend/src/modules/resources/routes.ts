@@ -1,19 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import type { Database } from "../../plugins/prisma.js";
-import {
-  createAuthenticate,
-  requireRoles,
-  TRANSPORT_ROLES,
-} from "../auth/auth.js";
+import type { AppConfig } from "../../config/env.js";
+import { createAuthenticate, requirePermission } from "../auth/auth.js";
 
 export async function registerResourceRoutes(
   app: FastifyInstance,
   database: Database,
+  config: AppConfig,
 ) {
-  const authenticate = createAuthenticate(database);
+  const authenticate = createAuthenticate(database, config);
 
   app.get("/drivers", { preHandler: authenticate }, async (request) => {
-    const auth = requireRoles(request, TRANSPORT_ROLES);
+    const auth = requirePermission(request, "drivers:read");
     const drivers = await database.driver.findMany({
       where: { organizationId: auth.organizationId },
       orderBy: { name: "asc" },
@@ -30,7 +28,7 @@ export async function registerResourceRoutes(
   });
 
   app.get("/vehicles", { preHandler: authenticate }, async (request) => {
-    const auth = requireRoles(request, TRANSPORT_ROLES);
+    const auth = requirePermission(request, "vehicles:read");
     const vehicles = await database.vehicle.findMany({
       where: { organizationId: auth.organizationId },
       orderBy: { plate: "asc" },
