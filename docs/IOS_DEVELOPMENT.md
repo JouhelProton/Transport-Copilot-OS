@@ -6,13 +6,15 @@ El proyecto SPM está generado en `frontend/ios/App/App.xcodeproj`, con bundle i
 
 Un Apple Account gratuito permite usar el equipo personal de Xcode para pruebas directas en dispositivos propios, con límites y firmas de desarrollo de corta duración. Apple Developer Program es necesario para App Store Connect/TestFlight, distribución sostenida y capacidades de equipo. Comprueba siempre las condiciones vigentes de Apple antes de distribuir.
 
+Apple Developer Program, TestFlight y App Store Connect quedan fuera de la fase actual. No son necesarios para validar desde Windows la web móvil HTTPS. Usa `docs/IPHONE_WINDOWS_DEVELOPMENT.md` para probar inmediatamente Safari y pantalla de inicio. Cuando exista acceso puntual a un Mac, este proyecto permanece preparado para una compilación de desarrollo con Xcode y Personal Team si las condiciones vigentes lo permiten.
+
 ## Instalación paso a paso
 
 1. Usa un Mac compatible con la versión de Xcode requerida.
 2. Instala Xcode desde App Store y ábrelo una vez para aceptar licencia/componentes.
 3. Instala Command Line Tools con `xcode-select --install` y verifica `xcode-select -p`.
 4. Inicia sesión en Xcode → Settings → Accounts con tu Apple Account. Para una prueba local puede bastar el Personal Team gratuito.
-5. Clona este repositorio en el Mac y cambia a `feat/driver-mobile-foundation` o a la rama integrada posterior.
+5. Clona este repositorio en el Mac y cambia a la rama integrada que contenga v0.3.
 6. Instala Node.js 24 y pnpm 11; verifica `node --version` y `pnpm --version`.
 7. En `frontend`, ejecuta `pnpm install --frozen-lockfile`.
 8. Copia `.env.mobile.example` como `.env.mobile.local`. Define una URL HTTPS que el iPhone pueda alcanzar; no uses `127.0.0.1` ni guardes secretos.
@@ -41,7 +43,7 @@ Un Apple Account gratuito permite usar el equipo personal de Xcode para pruebas 
 
 No versionar certificados, claves privadas, perfiles de provisioning, credenciales de App Store Connect ni archivos `.env.mobile.local`.
 
-## Camino futuro a TestFlight y App Store
+## Camino futuro y opcional a TestFlight y App Store
 
 1. Inscribirse en Apple Developer Program y crear la app en App Store Connect.
 2. Fijar bundle id definitivo, versión/build, iconos, privacidad y datos de soporte.
@@ -50,4 +52,4 @@ No versionar certificados, claves privadas, perfiles de provisioning, credencial
 5. Añadir testers internos; para externos, completar información y revisión beta cuando Apple la exija.
 6. Tras validar la beta, preparar ficha, revisión y publicación en App Store.
 
-Nada de esta sección se ha publicado ni compilado en Xcode durante v0.3 en Windows.
+Nada de esta sección se ha publicado ni compilado en Xcode durante v0.3 en Windows. Solo debe iniciarse cuando se decida distribuir y se autorice expresamente la membresía correspondiente.

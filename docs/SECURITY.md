@@ -45,3 +45,9 @@ Capacitor ejecuta la UI desde un origen WebView distinto al API. La cookie `Same
 En iOS se almacena en Keychain. En Android se cifra con AES-GCM usando una clave de Android Keystore. El adaptador no se invoca en web, donde continúa la cookie `HttpOnly`; nunca se guarda token o contraseña en `localStorage`. La API es configurable por build, no contiene secretos y producción exige HTTPS.
 
 La app restringe su navegación a conductor, pero esta medida es UX y reducción de superficie. El backend valida rol, membership, organización, vínculo `Driver.userId` y `Assignment` activo en cada petición. Con conectividad, logout revoca la sesión en servidor antes de borrar el token local. Sin conectividad, la app elimina el token del dispositivo para cerrar la sesión local; la sesión remota conserva su caducidad o puede revocarse administrativamente.
+
+## Preview HTTPS de iPhone desde Windows
+
+`pnpm iphone:dev` publica únicamente Vite mediante una URL aleatoria de Cloudflare Quick Tunnel. Fastify y PostgreSQL permanecen en `127.0.0.1`; Vite reenvía `/api` en el mismo origen HTTPS de Safari. El backend se ejecuta con cookie `Secure`, valida el origen fijo del proxy local y conserva `HttpOnly`/`SameSite=Lax`. No se añade un origen dinámico ni un comodín CORS.
+
+La superficie de frontend se limita al portal Driver y no muestra accesos rápidos de seed. El túnel sí deja accesibles la pantalla de login, assets y proxy API mientras el proceso está activo. La URL no es un control de autorización: toda operación sigue dependiendo de sesión, RBAC, tenant y vínculo del conductor. Es un entorno efímero de demostración, sin datos reales ni garantía de disponibilidad; `Ctrl+C` elimina el acceso. El binario y `.iphone-preview.json` se ignoran en Git.

@@ -53,7 +53,7 @@ export function LoginPage({ portal, reason }: { portal: Portal; reason?: string 
   };
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="driver-login-shell grid min-h-screen lg:grid-cols-2">
       <div className="hidden flex-col justify-between bg-hero p-10 text-ink-foreground lg:flex">
         <Logo light />
         <div>
@@ -66,7 +66,7 @@ export function LoginPage({ portal, reason }: { portal: Portal; reason?: string 
       </div>
       <div className="flex flex-col justify-center px-5 py-10 sm:px-12">
         <div className="mx-auto w-full max-w-md">
-          {!platform.isDriverNativeApp && (
+          {!platform.isDriverSurface && (
             <Link
               to="/acceso"
               className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -147,7 +147,7 @@ export function LoginPage({ portal, reason }: { portal: Portal; reason?: string 
             </Button>
           </form>
 
-          {import.meta.env.DEV && (
+          {import.meta.env.DEV && import.meta.env.VITE_SHOW_DEV_ACCOUNTS !== "false" && (
             <div className="mt-8 rounded-xl border border-dashed bg-demo/30 p-4">
               <p className="text-sm font-semibold text-demo-foreground">
                 Credenciales locales de desarrollo

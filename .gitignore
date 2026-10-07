@@ -44,6 +44,7 @@ temp/
 *.swo
 .cache/
 .pnpm-store/
+.tools/
 .vite/
 .parcel-cache/
 
@@ -53,6 +54,7 @@ dist/
 out/
 .next/
 coverage/
+.iphone-preview.json
 .nyc_output/
 
 # Operating system files

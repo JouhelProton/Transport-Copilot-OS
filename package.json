@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "node server.mjs",
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "iphone:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-cloudflared.ps1",
+    "iphone:dev": "node scripts/iphone-dev.mjs"
   }
 }

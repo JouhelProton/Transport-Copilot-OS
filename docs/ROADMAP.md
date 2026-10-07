@@ -14,9 +14,14 @@ Contraseñas `scrypt`, sesiones opacas revocables, cookie `HttpOnly`, organizaci
 
 ## v0.3 — Driver Mobile
 
-**STATUS: EN CURSO**
+**STATUS: EN CURSO / VALIDACIÓN**
 
-Capacitor iOS/Android, autenticación móvil segura, servicios reales del conductor y aceptación idempotente `DRIVER_ACCEPTED`. El cierre requiere validación en dispositivos físicos y build Xcode en macOS.
+Capacitor iOS/Android, autenticación móvil segura, servicios reales del conductor y aceptación idempotente `DRIVER_ACCEPTED`.
+
+- **Mobile web/PWA:** implementación HTTPS lista y flujo verificado por túnel; pendiente confirmación visual y táctil en un iPhone físico.
+- **iOS nativo:** proyecto generado y sincronizable; validación de hardware pendiente hasta disponer de macOS/Xcode.
+
+Tras confirmar Safari en un iPhone físico, v0.3 puede declararse **funcionalmente completado, con validación nativa iOS pendiente**. La ausencia de Mac no bloquea trabajo posterior que no dependa de compilación o hardware nativo.
 
 ## v0.4 — Live Tracking
 
@@ -56,4 +61,4 @@ Vertical productiva aprobada, operada y monitorizada con clientes reales.
 
 ## Condición de avance
 
-Cada rama se revisa antes de fusionarse. Los módulos marcados DEMO no reciben datos reales. v0.4 no comienza hasta cerrar las validaciones físicas de v0.3.
+Cada rama se revisa antes de fusionarse. Los módulos marcados DEMO no reciben datos reales. v0.4 no comienza en esta rama; requiere cerrar la validación funcional web de v0.3. La validación nativa iOS se registra por separado hasta disponer de Mac.
