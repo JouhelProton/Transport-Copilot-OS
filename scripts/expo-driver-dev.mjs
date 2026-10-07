@@ -72,7 +72,7 @@ try {
     cwd: backendRoot,
     env: { NODE_ENV: "production", HOST: "127.0.0.1", PORT: String(backendPort) },
   });
-  await waitFor(`${localApi}/health`, "backend");
+  await waitFor(`${localApi}/ready`, "backend y PostgreSQL");
 
   let output = "";
   let resolveTunnel;
@@ -88,7 +88,7 @@ try {
   });
   tunnel.once("exit", (code) => rejectTunnel(new Error(`cloudflared terminó con código ${code ?? "desconocido"}`)));
   const publicApi = await Promise.race([tunnelReady, new Promise((_, reject) => setTimeout(() => reject(new Error("No se recibió una URL HTTPS en 30 segundos.")), 30_000))]);
-  await waitFor(`${publicApi}/health`, "API pública");
+  await waitFor(`${publicApi}/ready`, "API pública y PostgreSQL");
   writeFileSync(join(root, ".expo-driver-preview.json"), `${JSON.stringify({ publicApi, expoConnection, startedAt: new Date().toISOString() }, null, 2)}\n`);
 
   console.log("\n============================================================");

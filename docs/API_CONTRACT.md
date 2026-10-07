@@ -2,7 +2,7 @@
 
 ## Convenciones
 
-- Base: `/api/v1`; `GET /health` queda fuera de la versión.
+- Base: `/api/v1`; `GET /health` y `GET /ready` quedan fuera de la versión.
 - JSON UTF-8 y fechas RFC 3339 UTC.
 - Error: `{ "error": { "code": "...", "message": "...", "details": [], "requestId": "..." } }`.
 - Validación de entrada con Zod y autorización de rol/tenant en servidor.
@@ -16,6 +16,7 @@
 | Método y ruta                             | Roles / alcance                                          | Resultado                                                            |
 | ----------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
 | `GET /health`                             | Público                                                  | Estado del proceso.                                                  |
+| `GET /ready`                              | Público                                                  | `200` solo cuando proceso y PostgreSQL responden; si no, `503`.      |
 | `POST /api/v1/auth/login`                 | Público con rate limit                                   | Valida credenciales, crea sesión y cookie.                           |
 | `POST /api/v1/auth/mobile-login`          | Público con rate limit                                   | Crea la misma sesión opaca y entrega el token una vez a la app.      |
 | `POST /api/v1/auth/logout`                | Sesión opcional                                          | Revoca la sesión y elimina la cookie.                                |

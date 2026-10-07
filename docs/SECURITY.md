@@ -48,6 +48,8 @@ La app restringe su navegación a conductor, pero esta medida es UX y reducción
 
 `pnpm mobile:dev` publica temporalmente solo Fastify mediante Quick Tunnel HTTPS; PostgreSQL permanece en loopback. El bundle de Expo viaja por LAN o por el túnel propio de Expo. La URL efímera se ignora en Git y no sustituye autenticación ni autorización.
 
+El cliente PostgreSQL limita el tiempo de conexión y consulta. Esto evita acumular peticiones de autenticación pendientes si Docker/PostgreSQL deja de responder; no altera `scrypt`, sesiones, RBAC ni aislamiento. `/ready` no expone datos y devuelve únicamente disponibilidad del servicio y la base.
+
 ## Preview HTTPS de iPhone desde Windows
 
 `pnpm iphone:dev` publica únicamente Vite mediante una URL aleatoria de Cloudflare Quick Tunnel. Fastify y PostgreSQL permanecen en `127.0.0.1`; Vite reenvía `/api` en el mismo origen HTTPS de Safari. El backend se ejecuta con cookie `Secure`, valida el origen fijo del proxy local y conserva `HttpOnly`/`SameSite=Lax`. No se añade un origen dinámico ni un comodín CORS.

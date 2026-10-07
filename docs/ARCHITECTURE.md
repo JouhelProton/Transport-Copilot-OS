@@ -59,6 +59,8 @@ backend/
 
 Las mutaciones compuestas usan transacciones Prisma. El cambio de dominio, `ServiceEvent` y `AuditLog` se escriben juntos. No existe todavía cola/outbox ni trabajadores asíncronos.
 
+El adaptador PostgreSQL aplica timeouts finitos de conexión y consulta para que una caída del motor no deje peticiones pendientes indefinidamente. `/health` comprueba el proceso y `/ready` comprueba además PostgreSQL; los orquestadores de desarrollo esperan readiness antes de publicar la API.
+
 ## Identidad, sesión y tenant
 
 `User` representa identidad y conserva únicamente un hash `scrypt` de la contraseña. Un login válido crea un token opaco aleatorio; el navegador recibe el token en una cookie `HttpOnly` y PostgreSQL guarda solo su hash SHA-256. `Session` controla expiración, revocación, último uso y la `Membership` activa.

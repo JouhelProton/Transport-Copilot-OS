@@ -70,6 +70,12 @@ describe("autenticación, sesiones y tenant", () => {
     );
     expect(known.statusCode).toBe(401);
     expect(unknown.statusCode).toBe(401);
+    expect(known.json()).toMatchObject({
+      error: {
+        code: "UNAUTHORIZED",
+        details: [],
+      },
+    });
     expect(known.json().error.message).toBe(unknown.json().error.message);
   });
 

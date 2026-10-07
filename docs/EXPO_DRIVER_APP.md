@@ -31,7 +31,7 @@ Cada sesión, con Windows y iPhone en la misma Wi-Fi:
 pnpm mobile:dev
 ```
 
-El comando arranca backend, crea una URL HTTPS efímera para `EXPO_PUBLIC_API_URL` e inicia Expo en LAN. Mantener la terminal abierta. Si la red local bloquea Metro:
+El comando arranca backend, espera a que `/ready` confirme PostgreSQL, crea una URL HTTPS efímera para `EXPO_PUBLIC_API_URL` e inicia Expo en LAN. Mantener la terminal abierta. Si la red local bloquea Metro:
 
 ```powershell
 pnpm mobile:dev:tunnel

@@ -79,6 +79,15 @@ describe("vertical pedido → servicio → asignación", () => {
     expect(response.json()).toMatchObject({ status: "ok" });
   });
 
+  it("confirma que PostgreSQL está listo", async () => {
+    const response = await app.inject({ method: "GET", url: "/ready" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "ok",
+      database: "ready",
+    });
+  });
+
   it("ejecuta el flujo completo y mantiene el aislamiento multi-tenant", async () => {
     const suffix = Date.now().toString(36);
     const pickup = new Date(Date.now() + 24 * 60 * 60 * 1000);

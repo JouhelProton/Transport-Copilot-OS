@@ -13,7 +13,12 @@ import { registerDriverRoutes } from "../modules/driver/routes.js";
 import { forbidden } from "../shared/errors.js";
 
 export async function buildApp(config: AppConfig, providedDatabase?: Database) {
-  const database = providedDatabase ?? createPrismaClient(config.DATABASE_URL);
+  const database =
+    providedDatabase ??
+    createPrismaClient(config.DATABASE_URL, {
+      connectionTimeoutMs: config.DATABASE_CONNECT_TIMEOUT_MS,
+      queryTimeoutMs: config.DATABASE_QUERY_TIMEOUT_MS,
+    });
   const app = Fastify({
     logger:
       config.NODE_ENV === "test"
@@ -60,31 +65,18 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
     service: "transport-copilot-backend",
   }));
 
-  await app.register(
-    async (api) => {
-      await api.register(
-        async (auth) => registerAuthRoutes(auth, database, config),
-        {
-          prefix: "/auth",
-        },
-      );
-      await registerOrderRoutes(api, database, config);
-      await registerServiceRoutes(api, database, config);
-      await registerResourceRoutes(api, database, config);
-      await registerDriverRoutes(api, database, config);
-    },
-    { prefix: "/api/v1" },
-  );
-
-  app.setNotFoundHandler((request, reply) => {
-    void reply.code(404).send({
-      error: {
-        code: "ROUTE_NOT_FOUND",
-        message: "Ruta no encontrada",
-        details: [],
-        requestId: request.id,
-      },
-    });
+  app.get("/ready", async (request, reply) => {
+    try {
+      await database.$queryRaw`SELECT 1`;
+      return { status: "ok", service: "transport-copilot-backend", database: "ready" };
+    } catch (error) {
+      request.log.error({ err: error }, "Database readiness check failed");
+      return reply.code(503).send({
+        status: "unavailable",
+        service: "transport-copilot-backend",
+        database: "unavailable",
+      });
+    }
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -111,18 +103,31 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
         },
       });
     }
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return reply.code(409).send({
-        error: {
-          code: "CONFLICT",
-          message: "Ya existe un registro con esos datos",
-          details: [],
-          requestId: request.id,
-        },
-      });
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return reply.code(409).send({
+          error: {
+            code: "CONFLICT",
+            message: "Ya existe un registro con esos datos",
+            details: [],
+            requestId: request.id,
+          },
+        });
+      }
+      if (["P1001", "P1002", "P2024"].includes(error.code)) {
+        request.log.error(
+          { err: error, requestId: request.id },
+          "Database request unavailable",
+        );
+        return reply.code(503).send({
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Servicio temporalmente no disponible",
+            details: [],
+            requestId: request.id,
+          },
+        });
+      }
     }
 
     request.log.error(
@@ -132,10 +137,34 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
     return reply.code(500).send({
       error: {
         code: "INTERNAL_ERROR",
-        message:
-          config.NODE_ENV === "production"
-            ? "Error interno del servidor"
-            : "Error interno del servidor",
+        message: "Error interno del servidor",
+        details: [],
+        requestId: request.id,
+      },
+    });
+  });
+
+  await app.register(
+    async (api) => {
+      await api.register(
+        async (auth) => registerAuthRoutes(auth, database, config),
+        {
+          prefix: "/auth",
+        },
+      );
+      await registerOrderRoutes(api, database, config);
+      await registerServiceRoutes(api, database, config);
+      await registerResourceRoutes(api, database, config);
+      await registerDriverRoutes(api, database, config);
+    },
+    { prefix: "/api/v1" },
+  );
+
+  app.setNotFoundHandler((request, reply) => {
+    void reply.code(404).send({
+      error: {
+        code: "ROUTE_NOT_FOUND",
+        message: "Ruta no encontrada",
         details: [],
         requestId: request.id,
       },
