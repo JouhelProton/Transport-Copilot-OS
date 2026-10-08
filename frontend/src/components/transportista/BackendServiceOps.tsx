@@ -13,6 +13,7 @@ import {
   useAssignService,
   useCarrierTracking,
   useCarrierTrackingHistory,
+  useServiceIntelligence,
   type ApiService,
 } from "@/lib/api/operations";
 import { fmtDateTime } from "@/lib/domain/projections";
@@ -24,6 +25,7 @@ export function BackendServiceOps({ service }: { service: ApiService }) {
   const assign = useAssignService(session);
   const tracking = useCarrierTracking(session, service.id);
   const trackingHistory = useCarrierTrackingHistory(session, service.id);
+  const intelligence = useServiceIntelligence(session, service.id);
   const [driverId, setDriverId] = useState(service.assignment?.driverId ?? "");
   const [vehicleId, setVehicleId] = useState(service.assignment?.vehicleId ?? "");
   const selectClass = "h-10 w-full rounded-lg border bg-card px-3 text-sm";
@@ -144,9 +146,21 @@ export function BackendServiceOps({ service }: { service: ApiService }) {
           )}
         </Panel>
 
+        <Panel title="Inteligencia operativa">
+          {intelligence.isError ? <p className="text-sm text-destructive">No se pudo consultar la inteligencia operativa: {intelligence.error.message}</p> : null}
+          <dl className="grid gap-4 text-sm sm:grid-cols-3">
+            <div><dt className="text-muted-foreground">ETA</dt><dd className="font-medium">{intelligence.data?.eta?.estimatedArrival ? fmtDateTime(intelligence.data.eta.estimatedArrival) : "No disponible"}</dd><p className="text-xs text-muted-foreground">{intelligence.data?.eta?.source ?? "Sin proveedor configurado"}</p></div>
+            <div><dt className="text-muted-foreground">Retraso</dt><dd className="font-medium">{intelligence.data?.state?.delayLevel ?? "Datos insuficientes"}</dd><p className="text-xs text-muted-foreground">{intelligence.data?.state?.delayMinutes != null ? `${intelligence.data.state.delayMinutes} min` : "Sin cálculo"}</p></div>
+            <div><dt className="text-muted-foreground">Incidencias abiertas</dt><dd className="font-medium">{intelligence.data?.incidents.filter((item) => !["RESOLVED", "CLOSED"].includes(item.status)).length ?? 0}</dd></div>
+            <div><dt className="text-muted-foreground">GPS</dt><dd className="font-medium">{intelligence.data?.state?.gpsStale ? "Desactualizado" : "Reciente"}</dd></div>
+            <div><dt className="text-muted-foreground">Origen</dt><dd className="font-medium">{intelligence.data?.geofences.find((item) => item.kind === "ORIGIN")?.isInside ? "Dentro de geofence" : "Fuera"}</dd></div>
+            <div><dt className="text-muted-foreground">Destino</dt><dd className="font-medium">{intelligence.data?.geofences.find((item) => item.kind === "DESTINATION")?.isInside ? "Llegada GPS detectada" : "Fuera"}</dd></div>
+          </dl>
+        </Panel>
+
         <Panel title="Funciones todavía en modo DEMO">
           <p className="text-sm text-muted-foreground">
-            Incidencias, documentos, POD y facturación siguen usando los datos de demostración
+            Documentos, POD y facturación siguen usando los datos de demostración
             hasta sus próximos hitos.
           </p>
         </Panel>

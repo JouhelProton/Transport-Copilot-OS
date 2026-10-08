@@ -40,6 +40,14 @@
 | `GET /api/v1/driver/services/:id/tracking` | `DRIVER`, servicio propio                         | Devuelve sesión, posición actual e histórico limitado.              |
 | `GET /api/v1/services/:id/tracking/current` | Transportista de la organización                  | Devuelve la última posición autorizada y estado de sesión.           |
 | `GET /api/v1/services/:id/tracking/history` | Transportista de la organización                  | Devuelve histórico acotado por fecha y límite.                       |
+| `POST /api/v1/driver/services/:id/incidents` | `DRIVER`, asignación activa | Crea una incidencia y notifica a operaciones. |
+| `GET /api/v1/driver/services/:id/incidents` | `DRIVER`, asignación activa | Lista las incidencias del servicio propio. |
+| `GET /api/v1/incidents` | Transportista con `incidents:read` | Lista incidencias del tenant. |
+| `PATCH /api/v1/services/:serviceId/incidents/:incidentId` | Transportista con `incidents:manage` | Cambia estado/prioridad y conserva historial. |
+| `GET /api/v1/services/:id/intelligence` | Transportista con `operations:read` | ETA, retraso, geofences e incidencias del servicio. |
+| `GET /api/v1/operations/exceptions` | Transportista con `operations:read` | Resumen priorizable de servicios que requieren atención. |
+| `GET /api/v1/notifications` | Transportista con `notifications:read` | Notificaciones internas del tenant. |
+| `PATCH /api/v1/notifications/:id/read` | Transportista con `notifications:read` | Marca una notificación propia como leída. |
 
 ## Autenticación
 
@@ -110,6 +118,12 @@ El teléfono nunca envía `driverId` ni `organizationId` como autoridad. El back
 
 La respuesta separa `CurrentPosition` (lectura rápida) de `LocationHistory` (muestras aceptadas). La retención es configurable como decisión pendiente; no se borran posiciones automáticamente en v0.4.
 
+## Operations Intelligence v0.5
+
+Una posición GPS nueva puede actualizar geofences, ETA y estado operativo. Las consultas ETA se limitan por tiempo y desplazamiento; `GOOGLE_ROUTES_API_KEY` es una credencial de servidor separada de `VITE_GOOGLE_MAPS_API_KEY`. Si falta o el proveedor no responde, se persiste `UNAVAILABLE` sin inventar tiempos.
+
+Las geofences usan precisión máxima e histéresis. `GEOFENCE_ENTERED` acredita llegada GPS, pero no completa entrega ni POD. Las alertas y notificaciones tienen claves de deduplicación por evento o ventana temporal.
+
 ## Fuera de esta versión
 
-GES, ETA, DECA legal, documentos, POD, facturación, incidencias, mensajería, notificaciones y automatizaciones no tienen todavía endpoints productivos. Los endpoints legacy de la raíz no pertenecen a `/api/v1`.
+GES, DECA legal, documentos, POD, facturación, mensajería externa y automatizaciones durables no tienen todavía endpoints productivos. Los endpoints legacy de la raíz no pertenecen a `/api/v1`.

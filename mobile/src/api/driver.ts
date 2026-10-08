@@ -7,6 +7,9 @@ import type {
   TrackingPosition,
   TrackingSession,
   TrackingSnapshot,
+  DriverIncident,
+  IncidentPriority,
+  IncidentType,
 } from "@/types/api";
 
 export function createDriverApi(client: ApiClient = apiClient) {
@@ -82,6 +85,13 @@ export function createDriverApi(client: ApiClient = apiClient) {
       const response = await client.request<ApiEnvelope<TrackingSnapshot>>(
         `/driver/services/${encodeURIComponent(id)}/tracking`,
         { token },
+      );
+      return response.data;
+    },
+    async createIncident(token: string, id: string, input: { type: IncidentType; description: string; priority: IncidentPriority }) {
+      const response = await client.request<ApiEnvelope<DriverIncident>>(
+        `/driver/services/${encodeURIComponent(id)}/incidents`,
+        { method: "POST", token, body: JSON.stringify(input) },
       );
       return response.data;
     },

@@ -68,6 +68,43 @@ export interface ApiTrackingSession {
   stopReason: string | null;
 }
 
+export type DelayLevel = "ON_TIME" | "RISK" | "CONFIRMED" | "DATA_INSUFFICIENT";
+export type IncidentStatus = "OPEN" | "IN_REVIEW" | "RESOLVED" | "CLOSED";
+export type IncidentPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface ApiIncident {
+  id: string;
+  serviceId: string;
+  type: string;
+  description: string;
+  status: IncidentStatus;
+  priority: IncidentPriority;
+  reportedAt: string;
+  resolvedAt: string | null;
+  reportedBy: { id: string; name: string };
+  history: Array<{ id: string; fromStatus: IncidentStatus | null; toStatus: IncidentStatus; note: string | null; changedAt: string }>;
+}
+
+export interface ApiOperationalException {
+  id: string;
+  reference: string;
+  customerName: string;
+  status: ServiceStatus;
+  plannedDelivery: string;
+  assignment: { driverName: string; vehiclePlate: string } | null;
+  currentPosition: { latitude: number; longitude: number; accuracy: number; recordedAt: string } | null;
+  eta: { status: "AVAILABLE" | "UNAVAILABLE"; estimatedArrival: string | null; calculatedAt: string; source: string } | null;
+  operationalState: { delayLevel: DelayLevel; delayMinutes: number | null; gpsStale: boolean; noProgress: boolean; reasons: string[]; assessedAt: string } | null;
+  openIncidents: number;
+}
+
+export interface ApiServiceIntelligence {
+  eta: { status: "AVAILABLE" | "UNAVAILABLE"; estimatedArrival: string | null; durationSeconds: number | null; distanceMeters: number | null; calculatedAt: string; source: string; unavailableReason: string | null } | null;
+  state: { delayLevel: DelayLevel; delayMinutes: number | null; gpsStale: boolean; noProgress: boolean; reasons: string[]; assessedAt: string } | null;
+  geofences: Array<{ id: string; kind: "ORIGIN" | "DESTINATION"; radiusMeters: number; isInside: boolean; lastTransitionAt: string | null; events: Array<{ id: string; kind: "ENTERED" | "EXITED"; recordedAt: string }> }>;
+  incidents: ApiIncident[];
+}
+
 export interface ApiService {
   id: string;
   organizationId: string;
@@ -224,6 +261,54 @@ export function useCarrierTrackingHistory(session: Session, serviceId: string) {
     refetchInterval: 10_000,
     refetchIntervalInBackground: false,
     retry: false,
+  });
+}
+
+export function useOperationalExceptions(session: Session) {
+  return useQuery({
+    queryKey: ["api", session.organizationId, "operations", "exceptions"],
+    queryFn: () => apiRequest<{ data: ApiOperationalException[] }>(session, "/operations/exceptions").then((result) => result.data),
+    enabled: enabledInBrowser(),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    retry: false,
+  });
+}
+
+export function useServiceIntelligence(session: Session, serviceId: string) {
+  return useQuery({
+    queryKey: ["api", session.organizationId, "intelligence", serviceId],
+    queryFn: () => apiRequest<{ data: ApiServiceIntelligence }>(session, `/services/${serviceId}/intelligence`).then((result) => result.data),
+    enabled: enabledInBrowser() && Boolean(serviceId),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    retry: false,
+  });
+}
+
+export function useApiIncidents(session: Session) {
+  return useQuery({
+    queryKey: ["api", session.organizationId, "incidents"],
+    queryFn: () => apiRequest<{ data: ApiIncident[] }>(session, "/incidents").then((result) => result.data),
+    enabled: enabledInBrowser(),
+    retry: false,
+  });
+}
+
+export function useUpdateIncident(session: Session) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serviceId, incidentId, status, priority, note }: { serviceId: string; incidentId: string; status: IncidentStatus; priority?: IncidentPriority; note?: string }) =>
+      apiRequest<{ data: ApiIncident }>(session, `/services/${serviceId}/incidents/${incidentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, ...(priority ? { priority } : {}), ...(note ? { note } : {}) }),
+      }).then((result) => result.data),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["api", session.organizationId, "incidents"] }),
+        queryClient.invalidateQueries({ queryKey: ["api", session.organizationId, "operations", "exceptions"] }),
+      ]);
+    },
   });
 }
 

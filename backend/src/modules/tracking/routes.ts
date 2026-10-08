@@ -4,6 +4,7 @@ import type { AppConfig } from "../../config/env.js";
 import type { Database } from "../../plugins/prisma.js";
 import { conflict, forbidden, notFound } from "../../shared/errors.js";
 import { createAuthenticate, requirePermission } from "../auth/auth.js";
+import { processOperationalPosition } from "../operations/processor.js";
 
 const positionSchema = z.object({
   sampleId: z.string().trim().min(1).max(128),
@@ -197,6 +198,8 @@ export async function registerTrackingRoutes(
       });
       if (duplicate) {
         const current = await database.currentPosition.findUnique({ where: { serviceId: service.id } });
+        if (!current || input.recordedAt >= current.recordedAt)
+          await processOperationalPosition(database, config, service.id, input, request.id);
         return { data: { accepted: true, duplicate: true, stale: false, current: current ? positionView(current) : null } };
       }
 
@@ -248,6 +251,8 @@ export async function registerTrackingRoutes(
           },
         });
       });
+      if (!stale)
+        await processOperationalPosition(database, config, service.id, input, request.id);
       return { data: { accepted: true, duplicate: false, stale, current: current ? positionView(current) : null } };
     },
   );

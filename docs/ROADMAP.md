@@ -35,7 +35,9 @@ GPS foreground consentido con Expo Location, sesiones explícitas, posiciones ac
 
 ## v0.5 — Operations
 
-Estados de viaje, incidencias, comunicación y gestión por excepciones.
+**STATUS: IMPLEMENTADO TÉCNICAMENTE — VALIDACIÓN VISUAL PENDIENTE**
+
+ETA mediante proveedor sustituible, estado de retraso, geofences con histéresis, incidencias operativas, notificaciones internas y panel de excepciones. Sin clave servidor de Google Routes la ETA se muestra como no disponible. La llegada GPS no completa la entrega.
 
 ## v0.6 — Documents & POD
 
@@ -67,4 +69,4 @@ Vertical productiva aprobada, operada y monitorizada con clientes reales.
 
 ## Condición de avance
 
-Cada rama se revisa antes de fusionarse. Los módulos marcados DEMO no reciben datos reales. v0.4 no comienza en esta rama; requiere cerrar la validación física de v0.3.5 en Expo Go. No se necesita Mac para esta comprobación.
+Cada rama se revisa antes de fusionarse. Los módulos marcados DEMO no reciben datos reales. Las validaciones físicas pendientes de v0.3.5/v0.4 no se consideran cerradas por implementar v0.5.

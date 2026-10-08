@@ -11,6 +11,7 @@ import { registerResourceRoutes } from "../modules/resources/routes.js";
 import { registerAuthRoutes } from "../modules/auth/routes.js";
 import { registerDriverRoutes } from "../modules/driver/routes.js";
 import { registerTrackingRoutes } from "../modules/tracking/routes.js";
+import { registerOperationsRoutes } from "../modules/operations/routes.js";
 import { forbidden } from "../shared/errors.js";
 
 export async function buildApp(config: AppConfig, providedDatabase?: Database) {
@@ -43,7 +44,7 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
   await app.register(cors, {
     origin: allowedOrigins,
     credentials: true,
-    methods: ["GET", "POST", "OPTIONS"],
+    methods: ["GET", "POST", "PATCH", "OPTIONS"],
     allowedHeaders: ["content-type", "x-request-id", "authorization"],
   });
 
@@ -158,6 +159,7 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
       await registerResourceRoutes(api, database, config);
       await registerDriverRoutes(api, database, config);
       await registerTrackingRoutes(api, database, config);
+      await registerOperationsRoutes(api, database, config);
     },
     { prefix: "/api/v1" },
   );

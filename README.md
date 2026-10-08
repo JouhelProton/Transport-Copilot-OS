@@ -1,5 +1,15 @@
 # Portal de cliente de transporte — demo
 
+## Entorno canónico local
+
+Con Docker Desktop iniciado y las dependencias instaladas, ejecuta desde la raíz:
+
+```powershell
+pnpm dev:stack
+```
+
+El comando conserva el volumen PostgreSQL, aplica migraciones pendientes, espera a que el backend esté listo y verifica el frontend por HTTP. Portal: `http://127.0.0.1:3000`; API: `http://127.0.0.1:3001`; readiness: `http://127.0.0.1:3001/ready`. Mantén la terminal abierta y usa `Ctrl+C` para cerrar frontend y backend.
+
 > **Producto canónico:** `/frontend` contiene los portales React web de cliente y transportista, `/mobile` la Driver App React Native + Expo y `/backend` el API Fastify/PostgreSQL común. La aplicación HTML/JavaScript descrita debajo se conserva como demo legacy. Para probar la Driver App en iPhone desde Windows consulta [`docs/EXPO_DRIVER_APP.md`](docs/EXPO_DRIVER_APP.md) y ejecuta `pnpm mobile:dev`.
 
 Demo navegable de tres perfiles conectados para un mismo flujo logístico: cliente, transportista y conductor. Los tres leen el servicio demo NV-24081 y su actividad compartida desde el mismo backend local. Los nombres, posiciones y acciones son ficticios; no se envían comunicaciones ni se transmite GPS real.

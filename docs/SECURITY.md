@@ -56,6 +56,12 @@ El teléfono solo puede iniciar, enviar o detener tracking con una sesión Beare
 
 La implementación no demuestra que el GPS sea imposible de manipular. Antes de producción deben fijarse finalidad, base jurídica, información al conductor, retención, borrado, acceso y auditoría conforme al marco español y europeo de protección de datos.
 
+## Operations Intelligence v0.5
+
+El conductor crea incidencias únicamente sobre una asignación activa derivada de su sesión. Los operadores consultan y modifican solo servicios e incidencias de su organización; los intentos cruzados devuelven `404`. Los cambios sensibles crean `AuditLog` y `ServiceEvent`.
+
+La clave de Routes API es un secreto exclusivo de backend (`GOOGLE_ROUTES_API_KEY`). No se envía al navegador ni se reutiliza la clave web. Las notificaciones se deduplican y no contienen coordenadas completas. ETA, retraso y geofence son señales operativas: no prueban entrega ni sustituyen la confirmación humana.
+
 ## Preview HTTPS de iPhone desde Windows
 
 `pnpm iphone:dev` publica únicamente Vite mediante una URL aleatoria de Cloudflare Quick Tunnel. Fastify y PostgreSQL permanecen en `127.0.0.1`; Vite reenvía `/api` en el mismo origen HTTPS de Safari. El backend se ejecuta con cookie `Secure`, valida el origen fijo del proxy local y conserva `HttpOnly`/`SameSite=Lax`. No se añade un origen dinámico ni un comodín CORS.

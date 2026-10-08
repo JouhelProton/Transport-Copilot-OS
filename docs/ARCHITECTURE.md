@@ -62,6 +62,8 @@ Las mutaciones compuestas usan transacciones Prisma. El cambio de dominio, `Serv
 
 Tracking separa captura (Expo Location), envío (controlador con cola limitada), autorización (Fastify), persistencia (current/histórico), consulta y visualización (Google Maps). El portal usa polling de 10 segundos; no se introducen WebSockets en v0.4.
 
+Operations Intelligence consume posiciones persistidas y mantiene proyecciones separadas: ETA, estado operativo, geofences, incidencias y notificaciones. `EtaProvider` desacopla Google Routes del dominio. El cálculo se limita por tiempo y distancia; los eventos de geofence usan precisión e histéresis. El panel web consulta `/operations/exceptions` cada 30 segundos.
+
 El adaptador PostgreSQL aplica timeouts finitos de conexión y consulta para que una caída del motor no deje peticiones pendientes indefinidamente. `/health` comprueba el proceso y `/ready` comprueba además PostgreSQL; los orquestadores de desarrollo esperan readiness antes de publicar la API.
 
 ## Identidad, sesión y tenant
@@ -75,6 +77,14 @@ El navegador usa cookie `HttpOnly`. La Driver App Expo usa el mismo token opaco 
 `Order.organizationId` identifica a la organización cliente propietaria del pedido y `carrierOrganizationId` al transportista destinatario. `Service.organizationId` identifica al transportista ejecutor y `customerOrganizationId` al cliente participante. Solo esos participantes explícitos acceden al recurso; un tercer tenant recibe `404`.
 
 ## Ejecución local
+
+La ruta recomendada es ejecutar desde la raíz:
+
+```powershell
+pnpm dev:stack
+```
+
+El orquestador inicia PostgreSQL con Docker, aplica migraciones, espera `/ready`, inicia Fastify y Vite, verifica ambos por HTTP y mantiene los procesos en primer plano. Publica el portal en `http://127.0.0.1:3000` y el API en `http://127.0.0.1:3001`.
 
 1. Copiar `backend/.env.example` a `backend/.env`.
 2. Ejecutar `docker compose -f backend/docker-compose.yml up -d --wait`.

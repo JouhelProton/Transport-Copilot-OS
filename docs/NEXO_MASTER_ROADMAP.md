@@ -36,7 +36,7 @@ GPS foreground explícito, sesiones de tracking, `CurrentPosition`, `LocationHis
 
 ### v0.5 — Operations
 
-Estados operativos, incidencias, comunicación y gestión por excepciones.
+Implementación técnica disponible: ETA con proveedor sustituible, retrasos, GPS desactualizado, geofences, incidencias del conductor, gestión por operador, notificaciones internas y panel de excepciones. La integración real con Google Routes requiere una clave de servidor y validación de facturación/API.
 
 ### v0.6 — Documents & POD
 

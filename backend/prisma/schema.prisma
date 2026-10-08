@@ -60,12 +60,71 @@ enum ServiceEventType {
   TRACKING_STARTED
   TRACKING_STOPPED
   TRACKING_EXPIRED
+  ETA_UPDATED
+  DELAY_STATUS_CHANGED
+  GEOFENCE_ENTERED
+  GEOFENCE_EXITED
+  INCIDENT_CREATED
+  INCIDENT_UPDATED
 }
 
 enum TrackingSessionStatus {
   ACTIVE
   STOPPED
   EXPIRED
+}
+
+enum EtaStatus {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum DelayLevel {
+  ON_TIME
+  RISK
+  CONFIRMED
+  DATA_INSUFFICIENT
+}
+
+enum GeofenceKind {
+  ORIGIN
+  DESTINATION
+}
+
+enum GeofenceEventKind {
+  ENTERED
+  EXITED
+}
+
+enum IncidentType {
+  DELAY
+  BREAKDOWN
+  LOADING_PROBLEM
+  UNLOADING_PROBLEM
+  WRONG_ADDRESS
+  DOCUMENT_PROBLEM
+  OTHER
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+enum IncidentPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  DELAY_DETECTED
+  INCIDENT_CREATED
+  ARRIVAL_DETECTED
+  GPS_STALE
 }
 
 model Organization {
@@ -87,6 +146,13 @@ model Organization {
   trackingSessions       TrackingSession[]
   currentPositions       CurrentPosition[]
   locationHistory        LocationHistory[]
+  etaEstimates           EtaEstimate[]
+  operationalStates      ServiceOperationalState[]
+  geofences              ServiceGeofence[]
+  geofenceEvents         GeofenceEvent[]
+  incidents              OperationalIncident[]
+  incidentHistory        IncidentHistory[]
+  notifications          InternalNotification[]
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 }
@@ -102,6 +168,8 @@ model User {
   driver        Driver?
   createdOrders Order[]      @relation("OrderCreator")
   auditLogs     AuditLog[]
+  reportedIncidents OperationalIncident[] @relation("IncidentReporter")
+  incidentChanges  IncidentHistory[]       @relation("IncidentChanger")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -208,6 +276,12 @@ model Service {
   trackingSessions       TrackingSession[]
   currentPosition        CurrentPosition?  @relation("ServiceCurrentPosition")
   locationHistory        LocationHistory[] @relation("ServiceLocationHistory")
+  etaEstimate            EtaEstimate?
+  operationalState       ServiceOperationalState?
+  geofences              ServiceGeofence[]
+  geofenceEvents         GeofenceEvent[]
+  incidents              OperationalIncident[]
+  notifications          InternalNotification[]
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
@@ -336,6 +410,140 @@ model LocationHistory {
   @@unique([serviceId, sampleId])
   @@index([organizationId, serviceId, recordedAt])
   @@index([driverId, recordedAt])
+}
+
+model EtaEstimate {
+  id              String       @id @default(cuid())
+  organizationId  String
+  serviceId       String       @unique
+  status          EtaStatus
+  estimatedArrival DateTime?
+  durationSeconds Int?
+  distanceMeters  Int?
+  calculatedAt    DateTime
+  source          String
+  unavailableReason String?
+  originLat       Decimal?     @db.Decimal(9, 6)
+  originLng       Decimal?     @db.Decimal(9, 6)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service         Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, calculatedAt])
+}
+
+model ServiceOperationalState {
+  id              String       @id @default(cuid())
+  organizationId  String
+  serviceId       String       @unique
+  delayLevel      DelayLevel   @default(DATA_INSUFFICIENT)
+  delayMinutes    Int?
+  gpsStale        Boolean      @default(false)
+  noProgress      Boolean      @default(false)
+  reasons         Json
+  assessedAt      DateTime
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service         Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, delayLevel, gpsStale])
+}
+
+model ServiceGeofence {
+  id              String        @id @default(cuid())
+  organizationId  String
+  serviceId       String
+  kind            GeofenceKind
+  latitude        Decimal       @db.Decimal(9, 6)
+  longitude       Decimal       @db.Decimal(9, 6)
+  radiusMeters    Int           @default(250)
+  isInside        Boolean       @default(false)
+  lastTransitionAt DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service         Service       @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  events          GeofenceEvent[]
+
+  @@unique([serviceId, kind])
+  @@index([organizationId, kind])
+}
+
+model GeofenceEvent {
+  id              String             @id @default(cuid())
+  organizationId  String
+  serviceId       String
+  geofenceId      String
+  kind            GeofenceEventKind
+  latitude        Decimal            @db.Decimal(9, 6)
+  longitude       Decimal            @db.Decimal(9, 6)
+  accuracy        Decimal            @db.Decimal(7, 2)
+  distanceMeters  Int
+  recordedAt      DateTime
+  createdAt       DateTime           @default(now())
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service         Service            @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  geofence        ServiceGeofence    @relation(fields: [geofenceId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, serviceId, recordedAt])
+  @@index([geofenceId, recordedAt])
+}
+
+model OperationalIncident {
+  id              String             @id @default(cuid())
+  organizationId  String
+  serviceId       String
+  type            IncidentType
+  description     String
+  status          IncidentStatus     @default(OPEN)
+  priority        IncidentPriority   @default(MEDIUM)
+  reportedByUserId String
+  reportedAt      DateTime           @default(now())
+  resolvedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service         Service            @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  reportedBy      User               @relation("IncidentReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+  history         IncidentHistory[]
+
+  @@index([organizationId, status, priority])
+  @@index([serviceId, reportedAt])
+}
+
+model IncidentHistory {
+  id              String              @id @default(cuid())
+  organizationId  String
+  incidentId      String
+  changedByUserId String
+  fromStatus      IncidentStatus?
+  toStatus        IncidentStatus
+  note            String?
+  changedAt       DateTime            @default(now())
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  incident        OperationalIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  changedBy       User                @relation("IncidentChanger", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, incidentId, changedAt])
+}
+
+model InternalNotification {
+  id              String           @id @default(cuid())
+  organizationId  String
+  serviceId       String?
+  type            NotificationType
+  title           String
+  message         String
+  dedupeKey       String
+  readAt          DateTime?
+  createdAt       DateTime         @default(now())
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service         Service?         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId, readAt, createdAt])
 }
 
 model ServiceEvent {

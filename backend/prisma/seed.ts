@@ -23,6 +23,16 @@ delivery.setHours(16, 30, 0, 0);
 await database.$transaction(async (tx) => {
   await tx.session.deleteMany();
   await tx.auditLog.deleteMany();
+  await tx.incidentHistory.deleteMany();
+  await tx.operationalIncident.deleteMany();
+  await tx.internalNotification.deleteMany();
+  await tx.geofenceEvent.deleteMany();
+  await tx.serviceGeofence.deleteMany();
+  await tx.etaEstimate.deleteMany();
+  await tx.serviceOperationalState.deleteMany();
+  await tx.locationHistory.deleteMany();
+  await tx.currentPosition.deleteMany();
+  await tx.trackingSession.deleteMany();
   await tx.serviceEvent.deleteMany();
   await tx.assignment.deleteMany();
   await tx.service.deleteMany();

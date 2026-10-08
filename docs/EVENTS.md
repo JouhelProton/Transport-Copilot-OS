@@ -20,13 +20,19 @@ Los eventos describen hechos persistidos, no órdenes futuras. Cada evento objet
 | `POD_UPLOADED`          | Evidencia POD recibida.                               |
 | `POD_VALIDATED`         | POD validado por actor autorizado.                    |
 | `INCIDENT_CREATED`      | Incidencia registrada.                                |
+| `INCIDENT_UPDATED`      | Estado, prioridad o responsable de incidencia cambia. |
+| `ETA_UPDATED`           | Estimación operativa recalculada o marcada no disponible. |
+| `DELAY_STATUS_CHANGED`  | Nivel de retraso operativo cambia.                    |
+| `GEOFENCE_ENTERED`      | Entrada válida en geocerca de origen o destino.       |
+| `GEOFENCE_EXITED`       | Salida válida con histéresis de geocerca.             |
 | `TRIP_READY_TO_INVOICE` | Requisitos para preparar factura satisfechos.         |
 | `INVOICE_CREATED`       | Factura/borrador creado según estado fiscal acordado. |
 
 ## Garantías
 
 - El backend ya persiste `ORDER_CREATED`, `ORDER_ACCEPTED`, `SERVICE_CREATED`, `DRIVER_ASSIGNED`, `VEHICLE_ASSIGNED` y `DRIVER_ACCEPTED` junto al cambio de dominio y al registro de auditoría dentro de una transacción.
-- El resto del catálogo es objetivo y todavía no está implementado. La demo raíz conserva nombres heredados como `ORDER.ACCEPTED`, `TRIP.ARRIVED`, `TRIP.DELIVERED`, `POD.UPLOADED`, `POD.VALIDATED`, `INVOICE.READY` e `INCIDENT.CREATED`; no forman parte del contrato del backend nuevo.
+- v0.5 persiste `ETA_UPDATED`, `DELAY_STATUS_CHANGED`, `GEOFENCE_ENTERED`, `GEOFENCE_EXITED`, `INCIDENT_CREATED` e `INCIDENT_UPDATED`. Las notificaciones internas derivadas usan claves de deduplicación por organización y condición.
+- Los eventos de POD y facturación siguen siendo objetivo. La demo raíz conserva nombres heredados como `ORDER.ACCEPTED`, `TRIP.ARRIVED`, `TRIP.DELIVERED`, `POD.UPLOADED`, `POD.VALIDATED`, `INVOICE.READY` e `INCIDENT.CREATED`; no forman parte del contrato del backend nuevo.
 - “Listo para facturar” no significa factura emitida. Separar preparación, borrador, emisión fiscal y envío.
 - Persistir evento y cambio de dominio en una transacción; usar outbox para consumidores asíncronos.
 - Consumidores idempotentes, reintentables y monitorizados.

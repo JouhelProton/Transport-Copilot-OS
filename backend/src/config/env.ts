@@ -42,6 +42,14 @@ const envSchema = z.object({
     .min(1)
     .max(24 * 30)
     .default(8),
+  GOOGLE_ROUTES_API_KEY: z.string().trim().min(1).optional(),
+  ETA_REFRESH_MINUTES: z.coerce.number().int().min(1).max(60).default(5),
+  ETA_MOVEMENT_METERS: z.coerce.number().int().min(100).max(50_000).default(5_000),
+  GPS_STALE_MINUTES: z.coerce.number().int().min(1).max(120).default(5),
+  NO_PROGRESS_MINUTES: z.coerce.number().int().min(5).max(240).default(20),
+  DELAY_CONFIRMED_MINUTES: z.coerce.number().int().min(1).max(240).default(30),
+  GEOFENCE_RADIUS_METERS: z.coerce.number().int().min(50).max(5_000).default(250),
+  GEOFENCE_MAX_ACCURACY_METERS: z.coerce.number().min(5).max(1_000).default(100),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

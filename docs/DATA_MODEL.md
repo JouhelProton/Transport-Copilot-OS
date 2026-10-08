@@ -19,6 +19,11 @@ El schema real vive en `backend/prisma/schema.prisma`. PostgreSQL es la persiste
 | `TrackingSession`    | Ciclo de vida del seguimiento GPS explícito por conductor y servicio.                                |
 | `CurrentPosition`    | Última posición válida de un servicio, con lectura rápida e índices por tenant/servicio.             |
 | `LocationHistory`    | Muestras GPS aceptadas e idempotentes, indexadas por servicio y fecha.                               |
+| `EtaEstimate`        | Última ETA calculada o motivo verificable de indisponibilidad.                                       |
+| `ServiceOperationalState` | Retraso, GPS desactualizado, falta de avance y razones de evaluación.                          |
+| `ServiceGeofence` / `GeofenceEvent` | Estado y transiciones verificables de origen/destino con histéresis.                  |
+| `OperationalIncident` / `IncidentHistory` | Incidencia de servicio e historial inmutable de cambios.                           |
+| `InternalNotification` | Aviso interno deduplicado por organización.                                                        |
 
 ## Relaciones
 
@@ -32,6 +37,11 @@ Service 1─* Assignment *─1 Driver
 Order/Service 1─* ServiceEvent
 Service 1─* TrackingSession 1─* LocationHistory
 Service 1─1 CurrentPosition
+Service 1─0..1 EtaEstimate
+Service 1─0..1 ServiceOperationalState
+Service 1─* ServiceGeofence 1─* GeofenceEvent
+Service 1─* OperationalIncident 1─* IncidentHistory
+Service 1─* InternalNotification
 Organization/User 1─* AuditLog
 ```
 
@@ -60,7 +70,13 @@ La cadena móvil es inequívoca: `User → Membership(role=DRIVER) → Driver.us
 
 ## Entidades todavía conceptuales o DEMO
 
-`DECA`, `Location`, `Document`, `Incident`, `POD`, `Invoice`, `Message`, `Notification`, `Automation`, `AutomationExecution` e `Integration` no están todavía en el schema productivo. Sus pantallas y datos permanecen en el backend de demostración del navegador o en la demo legacy.
+`DECA`, `Location`, `Document`, `POD`, `Invoice`, `Message`, `Automation`, `AutomationExecution` e `Integration` no están todavía en el schema productivo. Sus pantallas y datos permanecen en el backend de demostración del navegador o en la demo legacy.
+
+## Operations Intelligence v0.5
+
+`EtaEstimate` mantiene una proyección actual por servicio, no un histórico ilimitado de respuestas externas. `ServiceOperationalState` conserva la última evaluación y sus razones. Las transiciones de geofence sí generan `GeofenceEvent`; entrar en destino no modifica por sí solo el estado de entrega.
+
+Las incidencias pertenecen al tenant transportista y al servicio. `reportedByUserId` identifica al comunicante y `IncidentHistory` conserva cada cambio de estado. `InternalNotification` usa `(organizationId, dedupeKey)` para evitar duplicados.
 
 ## Tracking GPS v0.4
 

@@ -97,3 +97,16 @@ export interface TrackingSnapshot {
   current: TrackingPosition | null;
   history: TrackingPosition[];
 }
+
+export type IncidentType = "DELAY" | "BREAKDOWN" | "LOADING_PROBLEM" | "UNLOADING_PROBLEM" | "WRONG_ADDRESS" | "DOCUMENT_PROBLEM" | "OTHER";
+export type IncidentPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface DriverIncident {
+  id: string;
+  serviceId: string;
+  type: IncidentType;
+  description: string;
+  status: "OPEN" | "IN_REVIEW" | "RESOLVED" | "CLOSED";
+  priority: IncidentPriority;
+  reportedAt: string;
+}
