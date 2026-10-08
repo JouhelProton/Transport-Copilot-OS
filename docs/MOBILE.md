@@ -16,10 +16,13 @@ La app no envía `driverId`. Fastify lo deriva de la sesión, aplica RBAC, organ
 - `src/app`: rutas Expo Router `login`, `services` y `services/[id]`.
 - `src/api`: cliente central con base URL HTTPS, Bearer, JSON, timeout y errores seguros.
 - `src/auth`: ciclo de sesión y abstracción `AuthStorage` sobre `expo-secure-store`.
-- `src/hooks`: conectividad con `expo-network`; sin cola offline.
+- `src/hooks`: conectividad con `expo-network`.
+- `src/tracking`: controlador de GPS foreground, estados visibles y cola segura limitada.
 - `src/components`: componentes React Native con safe areas y controles táctiles grandes.
 
 `EXPO_PUBLIC_API_URL` se inyecta al arrancar; nunca se versiona `localhost`, una IP personal o una URL temporal. Consulta `docs/EXPO_DRIVER_APP.md` para comandos y prueba física.
+
+La dependencia `expo-location` está declarada en `mobile/package.json` y fijada en `mobile/pnpm-lock.yaml`. La validación se realizó con `pnpm install --frozen-lockfile --ignore-scripts`; en el dispositivo se debe instalar el proyecto antes de iniciar Expo Go.
 
 ## Capacitor anterior
 
@@ -27,4 +30,4 @@ La implementación Capacitor en `/frontend` queda **DEPRECATED para Driver App**
 
 ## Límites
 
-Expo Go es un cliente de desarrollo. EAS y Development Build se evaluarán cuando una capacidad nativa lo exija. No se implementan GPS, tracking, segundo plano, ETA, geofences, push, cámara, POD, firma o sincronización offline en v0.3.5.
+Expo Go es un cliente de desarrollo. v0.4 implementa GPS foreground con `expo-location`, pero no promete ejecución continua en segundo plano. EAS y Development Build se evaluarán cuando una capacidad nativa lo exija. ETA, geofences, push, cámara, POD y firma siguen fuera de alcance.

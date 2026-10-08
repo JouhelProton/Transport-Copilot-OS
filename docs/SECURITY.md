@@ -50,6 +50,12 @@ La app restringe su navegación a conductor, pero esta medida es UX y reducción
 
 El cliente PostgreSQL limita el tiempo de conexión y consulta. Esto evita acumular peticiones de autenticación pendientes si Docker/PostgreSQL deja de responder; no altera `scrypt`, sesiones, RBAC ni aislamiento. `/ready` no expone datos y devuelve únicamente disponibilidad del servicio y la base.
 
+## Tracking GPS v0.4
+
+El teléfono solo puede iniciar, enviar o detener tracking con una sesión Bearer válida, rol `DRIVER`, `Driver.userId` coincidente, organización derivada de la membership y asignación activa del servicio. El transportista solo consulta servicios de su organización; los clientes no tienen acceso a estas rutas en v0.4. Las coordenadas se validan y se minimizan: no se escriben en logs generales ni en `AuditLog` por cada muestra. La cola móvil está limitada, no contiene tokens y se limpia al detener o cerrar sesión.
+
+La implementación no demuestra que el GPS sea imposible de manipular. Antes de producción deben fijarse finalidad, base jurídica, información al conductor, retención, borrado, acceso y auditoría conforme al marco español y europeo de protección de datos.
+
 ## Preview HTTPS de iPhone desde Windows
 
 `pnpm iphone:dev` publica únicamente Vite mediante una URL aleatoria de Cloudflare Quick Tunnel. Fastify y PostgreSQL permanecen en `127.0.0.1`; Vite reenvía `/api` en el mismo origen HTTPS de Safari. El backend se ejecuta con cookie `Secure`, valida el origen fijo del proxy local y conserva `HttpOnly`/`SameSite=Lax`. No se añade un origen dinámico ni un comodín CORS.

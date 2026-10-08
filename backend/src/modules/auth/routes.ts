@@ -186,9 +186,44 @@ export async function registerAuthRoutes(
       readBearerToken(request.headers.authorization) ??
       readCookie(request.headers.cookie, config.SESSION_COOKIE_NAME);
     if (token) {
-      await database.session.updateMany({
-        where: { tokenHash: hashSessionToken(token), revokedAt: null },
-        data: { revokedAt: new Date() },
+      const session = await database.session.findUnique({
+        where: { tokenHash: hashSessionToken(token) },
+        select: { id: true, userId: true },
+      });
+      const stoppedAt = new Date();
+      const activeTracking = session
+        ? await database.trackingSession.findMany({
+            where: { driver: { userId: session.userId }, status: "ACTIVE" },
+            select: {
+              id: true,
+              organizationId: true,
+              serviceId: true,
+              driverId: true,
+            },
+          })
+        : [];
+      await database.$transaction(async (tx) => {
+        await tx.session.updateMany({
+          where: { tokenHash: hashSessionToken(token), revokedAt: null },
+          data: { revokedAt: stoppedAt },
+        });
+        if (!session || activeTracking.length === 0) return;
+        await tx.trackingSession.updateMany({
+          where: { id: { in: activeTracking.map((item) => item.id) } },
+          data: { status: "EXPIRED", stoppedAt, stopReason: "SESSION_REVOKED" },
+        });
+        await tx.serviceEvent.createMany({
+          data: activeTracking.map((item) => ({
+            organizationId: item.organizationId,
+            serviceId: item.serviceId,
+            type: "TRACKING_EXPIRED" as const,
+            entityType: "TrackingSession",
+            entityId: item.id,
+            actorUserId: session.userId,
+            correlationId: request.id,
+            payload: { driverId: item.driverId, reason: "SESSION_REVOKED" },
+          })),
+        });
       });
     }
     reply.header("set-cookie", expiredSessionCookie(config));

@@ -64,3 +64,36 @@ export interface MobileLoginPayload extends SessionPayload {
 export interface ApiEnvelope<T> {
   data: T;
 }
+
+export type TrackingSessionStatus = "ACTIVE" | "STOPPED" | "EXPIRED";
+
+export interface TrackingSession {
+  id: string;
+  serviceId: string;
+  driverId: string;
+  status: TrackingSessionStatus;
+  startedAt: string;
+  stoppedAt: string | null;
+  stopReason: string | null;
+}
+
+export interface TrackingPosition {
+  id: string;
+  serviceId: string;
+  driverId: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  heading: number | null;
+  speed: number | null;
+  recordedAt: string;
+  receivedAt: string;
+  source: string;
+  sampleId: string;
+}
+
+export interface TrackingSnapshot {
+  session: TrackingSession | null;
+  current: TrackingPosition | null;
+  history: TrackingPosition[];
+}

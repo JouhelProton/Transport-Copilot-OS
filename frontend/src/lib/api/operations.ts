@@ -43,6 +43,31 @@ export interface ApiOrder {
 
 export type ServiceStatus = "PLANNED" | "ASSIGNED" | "DRIVER_ACCEPTED";
 
+export interface ApiTrackingPosition {
+  id: string;
+  serviceId: string;
+  driverId: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  heading: number | null;
+  speed: number | null;
+  recordedAt: string;
+  receivedAt: string;
+  source: string;
+  sampleId: string;
+}
+
+export interface ApiTrackingSession {
+  id: string;
+  serviceId: string;
+  driverId: string;
+  status: "ACTIVE" | "STOPPED" | "EXPIRED";
+  startedAt: string;
+  stoppedAt: string | null;
+  stopReason: string | null;
+}
+
 export interface ApiService {
   id: string;
   organizationId: string;
@@ -168,6 +193,36 @@ export function useDriverApiService(session: Session, serviceId: string, online:
         (result) => result.data,
       ),
     enabled: enabledInBrowser() && online,
+    retry: false,
+  });
+}
+
+export function useCarrierTracking(session: Session, serviceId: string) {
+  return useQuery({
+    queryKey: ["api", session.organizationId, "tracking", serviceId, "current"],
+    queryFn: () =>
+      apiRequest<{ data: { current: ApiTrackingPosition | null; session: ApiTrackingSession | null } }>(
+        session,
+        `/services/${serviceId}/tracking/current`,
+      ).then((result) => result.data),
+    enabled: enabledInBrowser() && Boolean(serviceId),
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
+    retry: false,
+  });
+}
+
+export function useCarrierTrackingHistory(session: Session, serviceId: string) {
+  return useQuery({
+    queryKey: ["api", session.organizationId, "tracking", serviceId, "history"],
+    queryFn: () =>
+      apiRequest<{ data: ApiTrackingPosition[] }>(
+        session,
+        `/services/${serviceId}/tracking/history?limit=500`,
+      ).then((result) => result.data),
+    enabled: enabledInBrowser() && Boolean(serviceId),
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
     retry: false,
   });
 }

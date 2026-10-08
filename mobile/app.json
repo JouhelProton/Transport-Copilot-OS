@@ -33,6 +33,12 @@
           "imageWidth": 76
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "NEXO necesita tu ubicación mientras el seguimiento del servicio esté activo."
+        }
+      ],
       "expo-secure-store"
     ],
     "experiments": {

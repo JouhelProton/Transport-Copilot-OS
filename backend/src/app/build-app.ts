@@ -10,6 +10,7 @@ import { registerServiceRoutes } from "../modules/services/routes.js";
 import { registerResourceRoutes } from "../modules/resources/routes.js";
 import { registerAuthRoutes } from "../modules/auth/routes.js";
 import { registerDriverRoutes } from "../modules/driver/routes.js";
+import { registerTrackingRoutes } from "../modules/tracking/routes.js";
 import { forbidden } from "../shared/errors.js";
 
 export async function buildApp(config: AppConfig, providedDatabase?: Database) {
@@ -156,6 +157,7 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
       await registerServiceRoutes(api, database, config);
       await registerResourceRoutes(api, database, config);
       await registerDriverRoutes(api, database, config);
+      await registerTrackingRoutes(api, database, config);
     },
     { prefix: "/api/v1" },
   );

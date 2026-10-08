@@ -29,7 +29,9 @@ Expo SDK 57, Expo Router, SecureStore, conectividad, login DRIVER, servicios, de
 
 ## v0.4 — Live Tracking
 
-GPS consentido, background location, historial, proveedor de tracking, ETA y geofences. No iniciado.
+**STATUS: IMPLEMENTADO TÉCNICAMENTE — VALIDACIÓN FÍSICA PENDIENTE**
+
+GPS foreground consentido con Expo Location, sesiones explícitas, posiciones actuales e histórico PostgreSQL, validación server-side, deduplicación, cola móvil limitada, polling del portal transportista y Google Maps cuando la clave está configurada. No incluye background fiable en Expo Go, ETA, geofences ni proveedor GES. La prueba final en iPhone todavía no está validada.
 
 ## v0.5 — Operations
 

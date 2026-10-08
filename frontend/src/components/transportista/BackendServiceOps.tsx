@@ -5,11 +5,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ApiStatus } from "@/components/nexo/ApiStatus";
 import { Panel } from "@/components/nexo/ui";
+import { LiveTrackingMap } from "@/components/transportista/LiveTrackingMap";
 import { usePortalSession } from "@/lib/auth/use-portal";
 import {
   useApiDrivers,
   useApiVehicles,
   useAssignService,
+  useCarrierTracking,
+  useCarrierTrackingHistory,
   type ApiService,
 } from "@/lib/api/operations";
 import { fmtDateTime } from "@/lib/domain/projections";
@@ -19,6 +22,8 @@ export function BackendServiceOps({ service }: { service: ApiService }) {
   const drivers = useApiDrivers(session);
   const vehicles = useApiVehicles(session);
   const assign = useAssignService(session);
+  const tracking = useCarrierTracking(session, service.id);
+  const trackingHistory = useCarrierTrackingHistory(session, service.id);
   const [driverId, setDriverId] = useState(service.assignment?.driverId ?? "");
   const [vehicleId, setVehicleId] = useState(service.assignment?.vehicleId ?? "");
   const selectClass = "h-10 w-full rounded-lg border bg-card px-3 text-sm";
@@ -127,10 +132,22 @@ export function BackendServiceOps({ service }: { service: ApiService }) {
           )}
         </Panel>
 
+        <Panel title="Seguimiento GPS real">
+          {tracking.isError ? (
+            <p className="text-sm text-muted-foreground">No se pudo consultar el tracking: {tracking.error.message}</p>
+          ) : (
+            <LiveTrackingMap
+              position={tracking.data?.current ?? null}
+              history={trackingHistory.data ?? []}
+              session={tracking.data?.session ?? null}
+            />
+          )}
+        </Panel>
+
         <Panel title="Funciones todavía en modo DEMO">
           <p className="text-sm text-muted-foreground">
-            Tracking, incidencias, documentos, POD y facturación siguen usando los datos de
-            demostración hasta sus próximos hitos.
+            Incidencias, documentos, POD y facturación siguen usando los datos de demostración
+            hasta sus próximos hitos.
           </p>
         </Panel>
       </div>

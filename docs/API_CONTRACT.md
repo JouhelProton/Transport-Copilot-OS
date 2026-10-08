@@ -34,6 +34,12 @@
 | `GET /api/v1/driver/services`             | `DRIVER`, conductor vinculado                            | Solo servicios con Assignment activo del Driver autenticado.         |
 | `GET /api/v1/driver/services/:id`         | `DRIVER`, conductor vinculado                            | Detalle propio; `404` para otro conductor o tenant.                  |
 | `POST /api/v1/driver/services/:id/accept` | `driver:services:accept`                                 | `ASSIGNED → DRIVER_ACCEPTED`, evento y auditoría transaccionales.    |
+| `POST /api/v1/driver/services/:id/tracking/start` | `DRIVER`, asignación activa                    | Inicia o devuelve la sesión GPS activa del conductor autenticado.    |
+| `POST /api/v1/driver/services/:id/tracking/positions` | `DRIVER`, tracking activo                 | Valida y persiste una muestra GPS deduplicada.                       |
+| `POST /api/v1/driver/services/:id/tracking/stop` | `DRIVER`, sesión propia                       | Detiene la sesión y registra el evento.                              |
+| `GET /api/v1/driver/services/:id/tracking` | `DRIVER`, servicio propio                         | Devuelve sesión, posición actual e histórico limitado.              |
+| `GET /api/v1/services/:id/tracking/current` | Transportista de la organización                  | Devuelve la última posición autorizada y estado de sesión.           |
+| `GET /api/v1/services/:id/tracking/history` | Transportista de la organización                  | Devuelve histórico acotado por fecha y límite.                       |
 
 ## Autenticación
 
@@ -98,6 +104,12 @@ El body está vacío. El backend obtiene `driverId` desde el `User` autenticado 
 
 La primera petición válida cambia el estado a `DRIVER_ACCEPTED`, fija `Assignment.acceptedAt`, crea un `ServiceEvent DRIVER_ACCEPTED` y un `AuditLog SERVICE_DRIVER_ACCEPTED` en una transacción. Repetir la petición sobre la misma asignación devuelve el estado confirmado sin crear más eventos ni auditorías.
 
+## Tracking GPS v0.4
+
+El teléfono nunca envía `driverId` ni `organizationId` como autoridad. El backend los deriva de `Session → Membership → Driver → Assignment → Service`. Las posiciones exigen `sampleId`, coordenadas válidas, precisión, timestamp no futuro y antigüedad máxima de 24 horas. Una muestra repetida es idempotente y una muestra antigua no reemplaza `CurrentPosition`.
+
+La respuesta separa `CurrentPosition` (lectura rápida) de `LocationHistory` (muestras aceptadas). La retención es configurable como decisión pendiente; no se borran posiciones automáticamente en v0.4.
+
 ## Fuera de esta versión
 
-GPS/GES, ETA, DECA legal, documentos, POD, facturación, incidencias, mensajería, notificaciones y automatizaciones no tienen todavía endpoints productivos. Los endpoints legacy de la raíz no pertenecen a `/api/v1`.
+GES, ETA, DECA legal, documentos, POD, facturación, incidencias, mensajería, notificaciones y automatizaciones no tienen todavía endpoints productivos. Los endpoints legacy de la raíz no pertenecen a `/api/v1`.

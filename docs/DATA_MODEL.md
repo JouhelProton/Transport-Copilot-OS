@@ -16,6 +16,9 @@ El schema real vive en `backend/prisma/schema.prisma`. PostgreSQL es la persiste
 | `Vehicle`            | Recurso de flota delimitado por transportista.                                                      |
 | `ServiceEvent`       | Evento persistido de pedido/servicio, con actor, correlación, versión y payload.                    |
 | `AuditLog`           | Acción del usuario, entidad, tenant, request y metadatos.                                           |
+| `TrackingSession`    | Ciclo de vida del seguimiento GPS explícito por conductor y servicio.                                |
+| `CurrentPosition`    | Última posición válida de un servicio, con lectura rápida e índices por tenant/servicio.             |
+| `LocationHistory`    | Muestras GPS aceptadas e idempotentes, indexadas por servicio y fecha.                               |
 
 ## Relaciones
 
@@ -27,6 +30,8 @@ Customer 1─* Order 1─0..1 Service
 Service 1─* Assignment *─1 Driver
                          *─1 Vehicle
 Order/Service 1─* ServiceEvent
+Service 1─* TrackingSession 1─* LocationHistory
+Service 1─1 CurrentPosition
 Organization/User 1─* AuditLog
 ```
 
@@ -56,3 +61,9 @@ La cadena móvil es inequívoca: `User → Membership(role=DRIVER) → Driver.us
 ## Entidades todavía conceptuales o DEMO
 
 `DECA`, `Location`, `Document`, `Incident`, `POD`, `Invoice`, `Message`, `Notification`, `Automation`, `AutomationExecution` e `Integration` no están todavía en el schema productivo. Sus pantallas y datos permanecen en el backend de demostración del navegador o en la demo legacy.
+
+## Tracking GPS v0.4
+
+El origen productivo es `MOBILE_GPS` en primer plano. `TrackingSession` nace cuando el conductor pulsa iniciar y se marca `STOPPED` o `EXPIRED` al detener, cerrar sesión o revocar la sesión. `CurrentPosition` se actualiza solo con timestamps más recientes; `LocationHistory` deduplica por `serviceId + sampleId`.
+
+No hay política automática de borrado todavía. Antes de producción deben definirse finalidad, plazo de conservación, acceso, borrado y base jurídica aplicable al seguimiento laboral en España/UE.

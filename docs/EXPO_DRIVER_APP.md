@@ -45,8 +45,10 @@ El modo túnel de Expo puede requerir iniciar sesión con la misma cuenta de Exp
 2. Escanear el QR mostrado por la terminal.
 3. Abrir **Transport Copilot Driver**.
 4. Iniciar sesión con `conductor@demo.nexo.local` / `Demo-Transport-2026!` solo en el seed local.
-5. Abrir **Mis servicios**, entrar en el servicio, pulsar **Aceptar servicio** y comprobar **Servicio aceptado**.
-6. Cerrar sesión y pulsar `Ctrl+C` en Windows.
+5. Abrir **Mis servicios**, entrar en el servicio y pulsar **Aceptar servicio**.
+6. En **Seguimiento GPS**, pulsar **Iniciar seguimiento GPS** y conceder permiso **mientras se usa la app**.
+7. Mantener la pantalla activa y desplazarse de forma segura como peatón o acompañante; confirmar que aparece última hora, precisión y estado activo.
+8. Pulsar **Detener seguimiento**, cerrar sesión y pulsar `Ctrl+C` en Windows.
 
 ## Seguridad y sesión
 
@@ -61,7 +63,7 @@ El modo túnel de Expo puede requerir iniciar sesión con la misma cuenta de Exp
 
 Expo Go permite validar navegación, UI nativa, `SecureStore`, conectividad y el flujo API actual. Es una herramienta de desarrollo y no una distribución final. No se han configurado EAS, Development Build, TestFlight, App Store Connect ni Apple Developer Program.
 
-No existen todavía GPS, tracking, background location, ETA, geofences, push, POD, cámara o firma. Estas capacidades se evaluarán en v0.4 y posteriores; background location probablemente exigirá Development Build/EAS y configuración nativa.
+v0.4 implementa GPS foreground, histórico y cola limitada de posiciones. Expo Go no garantiza tracking cuando iOS suspende la app; background location fiable probablemente exigirá Development Build/EAS y configuración nativa. ETA, geofences, push, POD, cámara y firma siguen fuera de esta versión.
 
 ## Estado de sustitución
 

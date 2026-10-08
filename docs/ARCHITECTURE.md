@@ -28,7 +28,7 @@ cliente crea Order
   → ambos portales consultan el nuevo estado
 ```
 
-El frontend conserva los componentes y la navegación de Lovable. Pedidos, servicios, conductores, vehículos, asignaciones y aceptación del conductor consumen el API real. Tracking, mapas como fuente de posición, incidencias, documentos, POD, facturas, mensajería y automatizaciones siguen siendo DEMO.
+El frontend conserva los componentes y la navegación de Lovable. Pedidos, servicios, conductores, vehículos, asignaciones, aceptación y tracking GPS consumen el API real. Incidencias, documentos, POD, facturas, mensajería y automatizaciones siguen siendo DEMO.
 
 `/mobile` contiene la Driver App exclusiva creada con componentes React Native y Expo Router. Consume directamente los endpoints `/api/v1/driver/*`, guarda la sesión opaca en SecureStore y no contiene rutas de cliente, transportista o admin. La autorización definitiva permanece en el backend. La implementación Capacitor previa se conserva como referencia y queda deprecada para Driver App mientras se completa la validación física de Expo.
 
@@ -48,6 +48,7 @@ backend/
       services/          lectura y asignaciones
       resources/         conductores y vehículos
       driver/            consulta aislada y aceptación idempotente
+      tracking/          sesiones, posiciones, histórico y autorización GPS
     plugins/             Prisma/PostgreSQL
     shared/              errores y presenters del API
   prisma/
@@ -58,6 +59,8 @@ backend/
 ```
 
 Las mutaciones compuestas usan transacciones Prisma. El cambio de dominio, `ServiceEvent` y `AuditLog` se escriben juntos. No existe todavía cola/outbox ni trabajadores asíncronos.
+
+Tracking separa captura (Expo Location), envío (controlador con cola limitada), autorización (Fastify), persistencia (current/histórico), consulta y visualización (Google Maps). El portal usa polling de 10 segundos; no se introducen WebSockets en v0.4.
 
 El adaptador PostgreSQL aplica timeouts finitos de conexión y consulta para que una caída del motor no deje peticiones pendientes indefinidamente. `/health` comprueba el proceso y `/ready` comprueba además PostgreSQL; los orquestadores de desarrollo esperan readiness antes de publicar la API.
 
