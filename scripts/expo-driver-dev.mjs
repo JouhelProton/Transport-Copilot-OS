@@ -2,6 +2,12 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  acquireRunLock,
+  inspectBackendPort,
+  isCompatibleReady,
+  OwnedProcessRegistry,
+} from "./lib/expo-driver-runtime.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const backendRoot = join(root, "backend");
@@ -11,9 +17,16 @@ const backendPort = Number(process.env.MOBILE_BACKEND_PORT || 3101);
 const localApi = `http://127.0.0.1:${backendPort}`;
 const expoConnection = process.argv.includes("--lan") ? "--lan" : "--tunnel";
 const previewMetadata = join(root, ".expo-driver-preview.json");
-const children = [];
+const runLockPath = join(root, ".expo-driver-dev.lock");
+const children = new OwnedProcessRegistry();
+let runLock = null;
 let stopping = false;
+let ownsBackend = false;
 
+if (!Number.isInteger(backendPort) || backendPort < 1 || backendPort > 65_535) {
+  console.error("MOBILE_BACKEND_PORT no contiene un puerto válido.");
+  process.exit(1);
+}
 if (!existsSync(cloudflared)) {
   console.error("Falta cloudflared. Ejecuta una vez: pnpm iphone:setup");
   process.exit(1);
@@ -30,44 +43,60 @@ function start(label, command, args, { cwd = root, env = {}, inherit = false, on
     stdio: inherit ? "inherit" : ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
-  children.push(child);
+  children.add(child, label);
   if (!inherit) {
-    child.stdout.on("data", (chunk) => { onOutput?.(String(chunk)); process.stdout.write(`[${label}] ${chunk}`); });
-    child.stderr.on("data", (chunk) => { onOutput?.(String(chunk)); process.stderr.write(`[${label}] ${chunk}`); });
+    child.stdout.on("data", (chunk) => {
+      onOutput?.(String(chunk));
+      process.stdout.write(`[${label}] ${chunk}`);
+    });
+    child.stderr.on("data", (chunk) => {
+      onOutput?.(String(chunk));
+      process.stderr.write(`[${label}] ${chunk}`);
+    });
   }
   child.on("exit", (code) => {
     if (!stopping) {
       console.error(`\n${label} se ha detenido (código ${code ?? "desconocido"}).`);
-      stop(code || 1);
+      stop(code ?? 1);
     }
   });
   return child;
 }
 
-async function waitFor(url, label, attempts = 60, requireDatabase = false) {
+async function readReady(url, requestId) {
+  const response = await fetch(url, { headers: { "x-request-id": requestId } });
+  const body = await response.json().catch(() => null);
+  return { ok: response.ok && isCompatibleReady(body), body };
+}
+
+async function waitForReady(url, label, attempts = 60) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      const response = await fetch(url, { headers: { "x-request-id": `mobile-dev-${attempt}` } });
-      if (response.ok) {
-        if (!requireDatabase) return;
-        const body = await response.json();
-        if (body?.status === "ok" && body?.database === "ready") return;
-      }
+      const result = await readReady(url, `mobile-dev-${attempt}`);
+      if (result.ok) return result.body;
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(`${label} no responde en ${url}`);
+  throw new Error(`${label} no responde como backend NEXO saludable en ${url}`);
+}
+
+function terminateOwnedChild(child) {
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true,
+    });
+  } else {
+    child.kill("SIGTERM");
+  }
 }
 
 function stop(code = 0) {
   if (stopping) return;
   stopping = true;
-  console.log("\nCerrando Expo, túnel y backend...");
-  for (const child of [...children].reverse()) {
-    if (!child.pid || child.exitCode !== null) continue;
-    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-    else child.kill("SIGTERM");
-  }
+  console.log(`\nCerrando Expo y túnel${ownsBackend ? ", además del backend iniciado por esta ejecución" : ""}...`);
+  children.terminateAll(terminateOwnedChild);
+  runLock?.release();
   process.exit(code);
 }
 
@@ -75,18 +104,41 @@ process.once("SIGINT", () => stop(0));
 process.once("SIGTERM", () => stop(0));
 
 try {
+  runLock = acquireRunLock(runLockPath);
   rmSync(previewMetadata, { force: true });
-  console.log("Iniciando API privada para Transport Copilot Driver...");
-  start("backend", process.execPath, [join(backendRoot, "node_modules", "tsx", "dist", "cli.mjs"), "src/server.ts"], {
-    cwd: backendRoot,
-    env: { NODE_ENV: "production", HOST: "127.0.0.1", PORT: String(backendPort) },
-  });
-  await waitFor(`${localApi}/ready`, "backend y PostgreSQL", 60, true);
+
+  const backendPlan = await inspectBackendPort({ port: backendPort });
+  if (backendPlan.action === "CONFLICT") {
+    const pidText = backendPlan.pid ? ` PID detectado: ${backendPlan.pid}.` : " No se pudo determinar el PID.";
+    throw new Error(`El puerto ${backendPort} está ocupado por un proceso ajeno o incompatible.${pidText} ${backendPlan.reason} No se ha detenido ningún proceso.`);
+  }
+
+  if (backendPlan.action === "REUSE") {
+    console.log(`Reutilizando backend NEXO saludable en ${localApi}${backendPlan.pid ? ` (PID ${backendPlan.pid})` : ""}.`);
+  } else {
+    console.log(`Puerto ${backendPort} libre. Iniciando API privada para Transport Copilot Driver...`);
+    ownsBackend = true;
+    start(
+      "backend",
+      process.execPath,
+      [join(backendRoot, "node_modules", "tsx", "dist", "cli.mjs"), "src/server.ts"],
+      {
+        cwd: backendRoot,
+        env: { NODE_ENV: "production", HOST: "127.0.0.1", PORT: String(backendPort) },
+      },
+    );
+    await waitForReady(`${localApi}/ready`, "backend y PostgreSQL");
+  }
+
+  await waitForReady(`${localApi}/ready`, "backend local antes de crear el túnel");
 
   let output = "";
   let resolveTunnel;
   let rejectTunnel;
-  const tunnelReady = new Promise((resolve, reject) => { resolveTunnel = resolve; rejectTunnel = reject; });
+  const tunnelReady = new Promise((resolve, reject) => {
+    resolveTunnel = resolve;
+    rejectTunnel = reject;
+  });
   const tunnel = start("https", cloudflared, ["tunnel", "--no-autoupdate", "--url", localApi], {
     onOutput(chunk) {
       output = `${output}${chunk}`.slice(-16_384);
@@ -96,18 +148,30 @@ try {
     },
   });
   tunnel.once("exit", (code) => rejectTunnel(new Error(`cloudflared terminó con código ${code ?? "desconocido"}`)));
-  const publicApi = await Promise.race([tunnelReady, new Promise((_, reject) => setTimeout(() => reject(new Error("No se recibió una URL HTTPS en 30 segundos.")), 30_000))]);
-  await waitFor(`${publicApi}/ready`, "API pública y PostgreSQL", 60, true);
-  writeFileSync(previewMetadata, `${JSON.stringify({ publicApi, expoConnection, readyVerifiedAt: new Date().toISOString() }, null, 2)}\n`);
+  const publicApi = await Promise.race([
+    tunnelReady,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("No se recibió una URL HTTPS en 30 segundos.")), 30_000)),
+  ]);
+  await waitForReady(`${publicApi}/ready`, "túnel al backend NEXO");
+  writeFileSync(previewMetadata, `${JSON.stringify({
+    publicApi,
+    localApi,
+    backend: backendPlan.action === "REUSE" ? "reused" : "started",
+    backendPid: backendPlan.pid ?? null,
+    expoConnection,
+    readyVerifiedAt: new Date().toISOString(),
+  }, null, 2)}\n`);
 
   console.log("\n============================================================");
   console.log("TRANSPORT COPILOT DRIVER — EXPO GO");
+  console.log(`API local: ${localApi}`);
   console.log(`API URL: ${publicApi}`);
-  console.log("API pública verificada: /ready = ok, PostgreSQL = ready");
+  console.log("Túnel verificado contra el mismo backend NEXO: /ready = ok, PostgreSQL = ready");
+  console.log(`Backend: ${backendPlan.action === "REUSE" ? "reutilizado; no se cerrará al salir" : "iniciado por este proceso"}`);
   console.log(`Expo: ${expoConnection === "--lan" ? "LAN (iPhone y Windows en la misma Wi-Fi)" : "túnel"}`);
+  console.log(`EXPO_PUBLIC_API_URL: ${publicApi}`);
   console.log("Escanea el QR que aparecerá a continuación con Expo Go.");
-  console.log("Mantén esta terminal abierta. Ctrl+C cierra todo.");
-  console.log("Si cambia esta URL, reinicia este comando y recarga Expo Go para recibir el nuevo bundle.");
+  console.log("Mantén esta terminal abierta. Ctrl+C cierra únicamente los procesos propios.");
   console.log("============================================================\n");
 
   start("expo", process.execPath, [join(mobileRoot, "node_modules", "expo", "bin", "cli"), "start", expoConnection], {

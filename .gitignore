@@ -57,6 +57,7 @@ out/
 coverage/
 .iphone-preview.json
 .expo-driver-preview.json
+.expo-driver-dev.lock
 .nyc_output/
 
 # Operating system files

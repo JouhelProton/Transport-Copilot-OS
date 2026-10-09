@@ -39,6 +39,8 @@ pnpm mobile:dev:lan
 
 El modo LAN es opcional y solo conviene cuando Windows y el iPhone comparten una red que permite acceder a Metro. El túnel de Expo y el Quick Tunnel HTTPS del API son conexiones distintas.
 
+El arranque inspecciona `127.0.0.1:3101` antes de crear procesos. Reutiliza únicamente un `/ready` que identifique `transport-copilot-backend` y PostgreSQL disponible. Un puerto ocupado por cualquier otro servicio produce un error con su PID y nunca provoca un `taskkill`. Al cerrar, solo se terminan Expo, Cloudflare y el backend que esa misma ejecución haya creado.
+
 ## Prueba en iPhone
 
 1. Instalar y abrir Expo Go.

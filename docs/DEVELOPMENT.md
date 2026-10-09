@@ -44,6 +44,14 @@ pnpm mobile:dev:lan
 
 La terminal muestra la URL pública del API, la URL de Metro y el QR. Si cualquiera de las comprobaciones de readiness falla, el proceso se detiene antes de mostrar un QR inválido.
 
+Antes de iniciar Fastify, el coordinador comprueba el puerto `3101`. Si encuentra un backend NEXO con `/ready` saludable, lo reutiliza y no lo detiene al salir. Si el puerto pertenece a otro proceso, informa del PID cuando Windows puede resolverlo y termina sin cerrar ese proceso. Un bloqueo local impide ejecutar dos coordinadores `mobile:dev` al mismo tiempo; los bloqueos obsoletos se recuperan automáticamente.
+
+Pruebas específicas del coordinador:
+
+```powershell
+pnpm test:mobile-dev
+```
+
 ## Comprobaciones
 
 ```powershell
