@@ -34,7 +34,15 @@ Con el stack preparado:
 pnpm mobile:dev
 ```
 
-El comando publica temporalmente el API mediante HTTPS para Expo Go. El conductor demo es `conductor@demo.nexo.local` y la contraseña local está documentada en `docs/EXPO_DRIVER_APP.md`.
+El comando verifica PostgreSQL y el API local, publica temporalmente Fastify mediante HTTPS, verifica también `/ready` desde el túnel y abre Metro con el túnel de Expo. El conductor demo es `conductor@demo.nexo.local` y la contraseña local está documentada en `docs/EXPO_DRIVER_APP.md`.
+
+Para forzar Metro en red local:
+
+```powershell
+pnpm mobile:dev:lan
+```
+
+La terminal muestra la URL pública del API, la URL de Metro y el QR. Si cualquiera de las comprobaciones de readiness falla, el proceso se detiene antes de mostrar un QR inválido.
 
 ## Comprobaciones
 

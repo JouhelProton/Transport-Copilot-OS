@@ -38,6 +38,10 @@ GPS foreground explícito, sesiones de tracking, `CurrentPosition`, `LocationHis
 
 Implementación técnica disponible: ETA con proveedor sustituible, retrasos, GPS desactualizado, geofences, incidencias del conductor, gestión por operador, notificaciones internas y panel de excepciones. La integración real con Google Routes requiere una clave de servidor y validación de facturación/API.
 
+### v0.5.1 — GPS end-to-end correction
+
+Corrección técnica de compatibilidad con sensores iOS, entrega idempotente, cola offline y visibilidad diagnóstica. La prueba física en iPhone sigue siendo condición para cerrar v0.3.5 y v0.4.
+
 ### v0.6 — Documents & POD
 
 Documentos privados, DECA tras validación legal, cámara/firma, POD y validación.

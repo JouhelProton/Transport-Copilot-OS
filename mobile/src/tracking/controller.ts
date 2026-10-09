@@ -1,26 +1,52 @@
 import * as Location from "expo-location";
 import { AppState, type AppStateStatus } from "react-native";
-import { ApiError } from "@/api/client";
 import { driverApi } from "@/api/driver";
-import { appendPending, clearPendingPositions, readPendingPositions, writePendingPositions, type PendingPosition } from "./queue";
+import {
+  appendPendingSample,
+  appendRejectedSamples,
+  archiveLegacySamples,
+  belongsToSession,
+  readPendingSamples,
+  readRejectedSamples,
+  writePendingSamples,
+  MAX_PENDING,
+  type PendingTrackingSample,
+} from "./queue";
+import {
+  classifySyncError,
+  drainPendingSamples,
+  normalizeOptionalSensorValue,
+  retryDelayMs,
+  type SyncFailure,
+} from "./synchronizer";
 
 export type TrackingState =
   | "OFF"
   | "REQUESTING_PERMISSION"
+  | "PERMISSION_DENIED"
   | "LOCATING"
   | "ACTIVE"
   | "LOW_ACCURACY"
   | "OFFLINE"
   | "SYNC_PENDING"
+  | "AUTH_ERROR"
+  | "AUTHORIZATION_ERROR"
   | "SESSION_EXPIRED"
+  | "SAMPLE_REJECTED"
+  | "SERVER_UNAVAILABLE"
   | "STOPPED"
   | "ERROR";
 
 export interface TrackingStatus {
   state: TrackingState;
-  lastSentAt: string | null;
+  apiBaseUrl: string;
+  trackingSessionId: string | null;
+  lastAttemptAt: string | null;
+  lastConfirmedAt: string | null;
   lastAccuracy: number | null;
+  lastHttpStatus: number | null;
   pendingCount: number;
+  rejectedCount: number;
   message: string | null;
 }
 
@@ -30,27 +56,53 @@ function sampleId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function stateForFailure(failure: SyncFailure): TrackingState {
+  if (failure.kind === "AUTHENTICATION") return "AUTH_ERROR";
+  if (failure.kind === "AUTHORIZATION") return "AUTHORIZATION_ERROR";
+  if (failure.kind === "SESSION_EXPIRED") return "SESSION_EXPIRED";
+  if (failure.kind === "PERMANENT") return "SAMPLE_REJECTED";
+  return failure.status !== null && failure.status >= 500
+    ? "SERVER_UNAVAILABLE"
+    : "OFFLINE";
+}
+
 export class TrackingController {
   private subscription: Location.LocationSubscription | null = null;
   private retryTimer: ReturnType<typeof setInterval> | null = null;
-  private pending: PendingPosition[] = [];
+  private pending: PendingTrackingSample[] = [];
+  private allPending: PendingTrackingSample[] = [];
   private listeners = new Set<Listener>();
+  private flushPromise: Promise<void> | null = null;
+  private consecutiveFailures = 0;
+  private retryAfter = 0;
+  private sessionId: string | null = null;
   private status: TrackingStatus = {
     state: "OFF",
-    lastSentAt: null,
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_URL?.trim() || "Sin configurar",
+    trackingSessionId: null,
+    lastAttemptAt: null,
+    lastConfirmedAt: null,
     lastAccuracy: null,
+    lastHttpStatus: null,
     pendingCount: 0,
+    rejectedCount: 0,
     message: null,
   };
   private remoteActive = false;
   private appStateSubscription: { remove: () => void } | null = null;
 
   constructor(private readonly token: string, private readonly serviceId: string) {
-    this.appStateSubscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
-      if ((nextState === "background" || nextState === "inactive") && this.remoteActive) {
-        void this.stop();
-      }
-    });
+    this.appStateSubscription = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        if (
+          (nextState === "background" || nextState === "inactive") &&
+          this.remoteActive
+        ) {
+          void this.stop();
+        }
+      },
+    );
   }
 
   subscribe(listener: Listener) {
@@ -69,14 +121,49 @@ export class TrackingController {
     this.update({ state: "REQUESTING_PERMISSION", message: null });
     const permission = await Location.requestForegroundPermissionsAsync();
     if (permission.status !== "granted") {
-      this.update({ state: "ERROR", message: "Necesitamos permiso de ubicación para iniciar el seguimiento." });
+      this.update({
+        state: "PERMISSION_DENIED",
+        message: "Permiso de ubicación denegado. Actívalo en Ajustes para compartir el GPS.",
+      });
       return;
     }
     try {
-      await driverApi.startTracking(this.token, this.serviceId);
+      const session = await driverApi.startTracking(this.token, this.serviceId);
+      this.sessionId = session.id;
       this.remoteActive = true;
-      this.pending = await readPendingPositions();
-      this.update({ state: "LOCATING", pendingCount: this.pending.length });
+      const legacyCount = await archiveLegacySamples();
+      this.allPending = await readPendingSamples();
+      const obsolete = this.allPending.filter(
+        (item) => !belongsToSession(item, this.serviceId, session.id),
+      );
+      if (obsolete.length > 0) {
+        await appendRejectedSamples(
+          obsolete.map((item) => ({
+            serviceId: item.serviceId,
+            trackingSessionId: item.trackingSessionId,
+            sampleId: item.position.sampleId,
+            rejectedAt: new Date().toISOString(),
+            reason: "SESSION_CHANGED",
+            httpStatus: null,
+          })),
+        );
+        this.allPending = this.allPending.filter((item) =>
+          belongsToSession(item, this.serviceId, session.id),
+        );
+        await writePendingSamples(this.allPending);
+      }
+      this.pending = [...this.allPending];
+      const rejectedCount = (await readRejectedSamples()).length;
+      this.update({
+        state: "LOCATING",
+        trackingSessionId: session.id,
+        pendingCount: this.pending.length,
+        rejectedCount,
+        message:
+          legacyCount > 0
+            ? `${legacyCount} muestras antiguas se conservaron como rechazadas porque no tenían sesión asociada.`
+            : null,
+      });
       this.subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.Balanced,
@@ -86,84 +173,167 @@ export class TrackingController {
         },
         (location) => void this.handleLocation(location),
       );
-      this.retryTimer = setInterval(() => void this.flush(), 15_000);
-      this.update({ state: "ACTIVE" });
+      this.retryTimer = setInterval(() => void this.flush(), 2_000);
+      this.update({ state: this.pending.length ? "SYNC_PENDING" : "ACTIVE" });
       await this.flush();
     } catch (error) {
       await this.stopLocal();
       this.remoteActive = false;
-      if (error instanceof ApiError && error.kind === "UNAUTHORIZED") {
-        this.update({ state: "SESSION_EXPIRED", message: "Tu sesión ha caducado. Inicia sesión de nuevo." });
-      } else {
-        this.update({ state: "ERROR", message: "No se pudo iniciar el seguimiento. Vuelve a intentarlo." });
-      }
+      const failure = classifySyncError(error);
+      const state = failure.kind === "PERMANENT" ? "ERROR" : stateForFailure(failure);
+      this.update({
+        state,
+        lastHttpStatus: failure.status,
+        message: failure.message,
+      });
     }
   }
 
   private async handleLocation(location: Location.LocationObject) {
-    const position: PendingPosition = {
+    if (!this.sessionId) return;
+    const position = {
       sampleId: sampleId(),
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
       accuracy: location.coords.accuracy ?? 999,
-      heading: location.coords.heading,
-      speed: location.coords.speed,
+      heading: normalizeOptionalSensorValue(location.coords.heading),
+      speed: normalizeOptionalSensorValue(location.coords.speed),
       recordedAt: new Date(location.timestamp).toISOString(),
     };
+    const item: PendingTrackingSample = {
+      serviceId: this.serviceId,
+      trackingSessionId: this.sessionId,
+      queuedAt: new Date().toISOString(),
+      attempts: 0,
+      position,
+    };
+    if (this.pending.length >= MAX_PENDING) {
+      const overflow = this.pending.shift()!;
+      this.allPending = this.allPending.filter(
+        (queued) => queued.position.sampleId !== overflow.position.sampleId,
+      );
+      await appendRejectedSamples([{
+        serviceId: overflow.serviceId,
+        trackingSessionId: overflow.trackingSessionId,
+        sampleId: overflow.position.sampleId,
+        rejectedAt: new Date().toISOString(),
+        reason: "QUEUE_LIMIT_REACHED",
+        httpStatus: null,
+      }]);
+    }
+    this.pending = appendPendingSample(this.pending, item);
+    this.allPending = appendPendingSample(this.allPending, item);
+    await writePendingSamples(this.allPending);
     this.update({
-      state: position.accuracy > 500 ? "LOW_ACCURACY" : "ACTIVE",
+      state: "SYNC_PENDING",
       lastAccuracy: position.accuracy,
+      pendingCount: this.pending.length,
+      message: "GPS activo. Esperando confirmación del servidor.",
     });
-    this.pending = appendPending(this.pending, position);
-    await writePendingPositions(this.pending);
     await this.flush();
   }
 
-  private async flush() {
-    if (this.pending.length === 0) {
-      this.update({ pendingCount: 0 });
+  private flush() {
+    if (this.flushPromise) return this.flushPromise;
+    this.flushPromise = this.performFlush().finally(() => {
+      this.flushPromise = null;
+    });
+    return this.flushPromise;
+  }
+
+  private async performFlush() {
+    if (!this.sessionId || this.pending.length === 0) {
+      this.update({ pendingCount: this.pending.length });
       return;
     }
-    while (this.pending.length > 0) {
-      const item = this.pending[0]!;
-      try {
-        await driverApi.sendTrackingPosition(this.token, this.serviceId, item);
-        this.pending = this.pending.slice(1);
-        await writePendingPositions(this.pending);
-        this.update({ lastSentAt: new Date().toISOString(), pendingCount: this.pending.length, state: this.pending.length ? "SYNC_PENDING" : "ACTIVE" });
-      } catch (error) {
-        if (error instanceof ApiError && error.kind === "UNAUTHORIZED") {
-          await this.stopLocal();
-          this.remoteActive = false;
-          this.update({ state: "SESSION_EXPIRED", message: "Tu sesión ha caducado. Inicia sesión de nuevo." });
-        } else {
-          this.update({ state: "OFFLINE", pendingCount: this.pending.length, message: "Guardado en cola. Se sincronizará al recuperar la conexión." });
-        }
-        return;
-      }
+    if (Date.now() < this.retryAfter) return;
+    const attemptedAt = new Date().toISOString();
+    this.update({ lastAttemptAt: attemptedAt });
+    const result = await drainPendingSamples(this.pending, async (item) => {
+      item.attempts += 1;
+      await driverApi.sendTrackingPosition(
+        this.token,
+        this.serviceId,
+        item.position,
+      );
+    });
+    this.pending = result.pending;
+    this.allPending = this.allPending.filter((item) =>
+      this.pending.some(
+        (pending) => pending.position.sampleId === item.position.sampleId,
+      ),
+    );
+    await writePendingSamples(this.allPending);
+    if (result.rejected.length > 0) await appendRejectedSamples(result.rejected);
+
+    if (!result.failure) {
+      this.consecutiveFailures = 0;
+      this.retryAfter = 0;
+      this.update({
+        state: "ACTIVE",
+        lastConfirmedAt:
+          result.confirmed > 0 ? new Date().toISOString() : this.status.lastConfirmedAt,
+        lastHttpStatus: result.confirmed > 0 ? 200 : this.status.lastHttpStatus,
+        pendingCount: 0,
+        rejectedCount: (await readRejectedSamples()).length,
+        message: "GPS activo y sincronizado con el servidor.",
+      });
+      return;
     }
+
+    const failure = result.failure;
+    if (failure.kind === "TEMPORARY") {
+      this.consecutiveFailures += 1;
+      this.retryAfter = Date.now() + retryDelayMs(this.consecutiveFailures);
+    } else {
+      this.consecutiveFailures = 0;
+      this.retryAfter = 0;
+    }
+    if (["AUTHENTICATION", "AUTHORIZATION", "SESSION_EXPIRED"].includes(failure.kind)) {
+      await this.stopLocal();
+      this.remoteActive = false;
+    }
+    this.update({
+      state: stateForFailure(failure),
+      lastHttpStatus: failure.status,
+      pendingCount: this.pending.length,
+      rejectedCount: (await readRejectedSamples()).length,
+      message:
+        failure.kind === "TEMPORARY"
+          ? `${failure.message} Las muestras permanecen en cola y se reintentará automáticamente.`
+          : failure.message,
+    });
   }
 
   async stop() {
+    await this.flush();
+    if (this.pending.length > 0) {
+      this.update({
+        state: "SYNC_PENDING",
+        message: "Hay muestras pendientes. El seguimiento seguirá activo hasta poder confirmarlas.",
+      });
+      return;
+    }
     try {
-      await this.flush();
       await driverApi.stopTracking(this.token, this.serviceId);
       this.remoteActive = false;
-      await clearPendingPositions();
-      this.pending = [];
       await this.stopLocal();
       this.update({ state: "STOPPED", pendingCount: 0, message: null });
-    } catch {
-      this.update({ state: "ERROR", message: "No se pudo detener el seguimiento. Vuelve a intentarlo." });
+    } catch (error) {
+      this.update({
+        state: "ERROR",
+        message: error instanceof Error ? error.message : "No se pudo detener el seguimiento.",
+      });
     }
   }
 
   async dispose() {
-    if (this.remoteActive) {
+    await this.flush();
+    if (this.remoteActive && this.pending.length === 0) {
       try {
         await driverApi.stopTracking(this.token, this.serviceId);
       } catch {
-        // The server will reject stale positions once the session expires.
+        // La sesión remota caducará y la próxima apertura reconciliará su estado.
       }
       this.remoteActive = false;
     }

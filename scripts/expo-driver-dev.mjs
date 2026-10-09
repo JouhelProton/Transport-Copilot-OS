@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,7 +9,8 @@ const mobileRoot = join(root, "mobile");
 const cloudflared = join(root, ".tools", "cloudflared.exe");
 const backendPort = Number(process.env.MOBILE_BACKEND_PORT || 3101);
 const localApi = `http://127.0.0.1:${backendPort}`;
-const expoConnection = process.argv.includes("--tunnel") ? "--tunnel" : "--lan";
+const expoConnection = process.argv.includes("--lan") ? "--lan" : "--tunnel";
+const previewMetadata = join(root, ".expo-driver-preview.json");
 const children = [];
 let stopping = false;
 
@@ -43,9 +44,16 @@ function start(label, command, args, { cwd = root, env = {}, inherit = false, on
   return child;
 }
 
-async function waitFor(url, label, attempts = 60) {
+async function waitFor(url, label, attempts = 60, requireDatabase = false) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try { const response = await fetch(url); if (response.ok) return; } catch {}
+    try {
+      const response = await fetch(url, { headers: { "x-request-id": `mobile-dev-${attempt}` } });
+      if (response.ok) {
+        if (!requireDatabase) return;
+        const body = await response.json();
+        if (body?.status === "ok" && body?.database === "ready") return;
+      }
+    } catch {}
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error(`${label} no responde en ${url}`);
@@ -67,12 +75,13 @@ process.once("SIGINT", () => stop(0));
 process.once("SIGTERM", () => stop(0));
 
 try {
+  rmSync(previewMetadata, { force: true });
   console.log("Iniciando API privada para Transport Copilot Driver...");
   start("backend", process.execPath, [join(backendRoot, "node_modules", "tsx", "dist", "cli.mjs"), "src/server.ts"], {
     cwd: backendRoot,
     env: { NODE_ENV: "production", HOST: "127.0.0.1", PORT: String(backendPort) },
   });
-  await waitFor(`${localApi}/ready`, "backend y PostgreSQL");
+  await waitFor(`${localApi}/ready`, "backend y PostgreSQL", 60, true);
 
   let output = "";
   let resolveTunnel;
@@ -88,15 +97,17 @@ try {
   });
   tunnel.once("exit", (code) => rejectTunnel(new Error(`cloudflared terminó con código ${code ?? "desconocido"}`)));
   const publicApi = await Promise.race([tunnelReady, new Promise((_, reject) => setTimeout(() => reject(new Error("No se recibió una URL HTTPS en 30 segundos.")), 30_000))]);
-  await waitFor(`${publicApi}/ready`, "API pública y PostgreSQL");
-  writeFileSync(join(root, ".expo-driver-preview.json"), `${JSON.stringify({ publicApi, expoConnection, startedAt: new Date().toISOString() }, null, 2)}\n`);
+  await waitFor(`${publicApi}/ready`, "API pública y PostgreSQL", 60, true);
+  writeFileSync(previewMetadata, `${JSON.stringify({ publicApi, expoConnection, readyVerifiedAt: new Date().toISOString() }, null, 2)}\n`);
 
   console.log("\n============================================================");
   console.log("TRANSPORT COPILOT DRIVER — EXPO GO");
   console.log(`API URL: ${publicApi}`);
+  console.log("API pública verificada: /ready = ok, PostgreSQL = ready");
   console.log(`Expo: ${expoConnection === "--lan" ? "LAN (iPhone y Windows en la misma Wi-Fi)" : "túnel"}`);
   console.log("Escanea el QR que aparecerá a continuación con Expo Go.");
   console.log("Mantén esta terminal abierta. Ctrl+C cierra todo.");
+  console.log("Si cambia esta URL, reinicia este comando y recarga Expo Go para recibir el nuevo bundle.");
   console.log("============================================================\n");
 
   start("expo", process.execPath, [join(mobileRoot, "node_modules", "expo", "bin", "cli"), "start", expoConnection], {

@@ -83,6 +83,15 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
+      request.log.warn(
+        {
+          requestId: request.id,
+          method: request.method,
+          url: request.url,
+          validationPaths: error.issues.map((issue) => issue.path.join(".")),
+        },
+        "Request validation rejected",
+      );
       return reply.code(400).send({
         error: {
           code: "VALIDATION_ERROR",
@@ -130,6 +139,41 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
           },
         });
       }
+    }
+
+    const fastifyStatus = (error as { statusCode?: unknown }).statusCode;
+    if (
+      typeof fastifyStatus === "number" &&
+      fastifyStatus >= 400 &&
+      fastifyStatus < 500
+    ) {
+      const responseCode =
+        fastifyStatus === 415
+          ? "UNSUPPORTED_MEDIA_TYPE"
+          : fastifyStatus === 429
+            ? "RATE_LIMITED"
+            : "REQUEST_ERROR";
+      request.log.warn(
+        {
+          requestId: request.id,
+          method: request.method,
+          url: request.url,
+          statusCode: fastifyStatus,
+          code: (error as { code?: unknown }).code,
+        },
+        "HTTP request rejected",
+      );
+      return reply.code(fastifyStatus).send({
+        error: {
+          code: responseCode,
+          message:
+            fastifyStatus === 415
+              ? "El tipo de contenido de la petición no es compatible"
+              : "La petición no se ha podido procesar",
+          details: [],
+          requestId: request.id,
+        },
+      });
     }
 
     request.log.error(

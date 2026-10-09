@@ -6,29 +6,90 @@ export type PendingPosition = Omit<
   "id" | "serviceId" | "driverId" | "receivedAt" | "source"
 >;
 
-const STORAGE_KEY = "nexo.driver.tracking.queue.v1";
-const MAX_PENDING = 100;
+export interface PendingTrackingSample {
+  serviceId: string;
+  trackingSessionId: string;
+  queuedAt: string;
+  attempts: number;
+  position: PendingPosition;
+}
 
-export async function readPendingPositions(): Promise<PendingPosition[]> {
+export interface RejectedTrackingSample {
+  serviceId: string | null;
+  trackingSessionId: string | null;
+  sampleId: string;
+  rejectedAt: string;
+  reason: string;
+  httpStatus: number | null;
+}
+
+const STORAGE_KEY = "nexo.driver.tracking.queue.v2";
+const REJECTED_KEY = "nexo.driver.tracking.rejected.v1";
+const LEGACY_STORAGE_KEY = "nexo.driver.tracking.queue.v1";
+export const MAX_PENDING = 100;
+export const MAX_REJECTED = 50;
+
+async function readArray<T>(key: string): Promise<T[]> {
   try {
-    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+    const raw = await SecureStore.getItemAsync(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? (parsed as PendingPosition[]).slice(-MAX_PENDING) : [];
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
   } catch {
     return [];
   }
 }
 
-export async function writePendingPositions(items: PendingPosition[]) {
+export async function readPendingSamples(): Promise<PendingTrackingSample[]> {
+  return (await readArray<PendingTrackingSample>(STORAGE_KEY)).slice(-MAX_PENDING);
+}
+
+export async function writePendingSamples(items: PendingTrackingSample[]) {
   await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(items.slice(-MAX_PENDING)));
 }
 
-export async function clearPendingPositions() {
-  await SecureStore.deleteItemAsync(STORAGE_KEY);
+export async function readRejectedSamples(): Promise<RejectedTrackingSample[]> {
+  return (await readArray<RejectedTrackingSample>(REJECTED_KEY)).slice(-MAX_REJECTED);
 }
 
-export function appendPending(items: PendingPosition[], item: PendingPosition) {
-  if (items.some((existing) => existing.sampleId === item.sampleId)) return items;
+export async function appendRejectedSamples(items: RejectedTrackingSample[]) {
+  const existing = await readRejectedSamples();
+  await SecureStore.setItemAsync(
+    REJECTED_KEY,
+    JSON.stringify([...existing, ...items].slice(-MAX_REJECTED)),
+  );
+}
+
+export async function archiveLegacySamples() {
+  const legacy = await readArray<PendingPosition>(LEGACY_STORAGE_KEY);
+  if (legacy.length === 0) return 0;
+  await appendRejectedSamples(
+    legacy.map((position) => ({
+      serviceId: null,
+      trackingSessionId: null,
+      sampleId: position.sampleId,
+      rejectedAt: new Date().toISOString(),
+      reason: "LEGACY_CONTEXT_UNKNOWN",
+      httpStatus: null,
+    })),
+  );
+  await SecureStore.deleteItemAsync(LEGACY_STORAGE_KEY);
+  return legacy.length;
+}
+
+export function appendPendingSample(
+  items: PendingTrackingSample[],
+  item: PendingTrackingSample,
+) {
+  if (items.some((existing) => existing.position.sampleId === item.position.sampleId))
+    return items;
   return [...items, item].slice(-MAX_PENDING);
+}
+
+export function belongsToSession(
+  item: PendingTrackingSample,
+  serviceId: string,
+  trackingSessionId: string,
+) {
+  return item.serviceId === serviceId && item.trackingSessionId === trackingSessionId;
 }

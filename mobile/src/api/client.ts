@@ -13,6 +13,7 @@ export class ApiError extends Error {
     public readonly kind: ApiErrorKind,
     public readonly status?: number,
     public readonly code?: string,
+    public readonly requestId?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -49,6 +50,10 @@ function normalizedBaseUrl(configured?: string) {
   return value;
 }
 
+export function configuredApiBaseUrl() {
+  return normalizedBaseUrl(process.env.EXPO_PUBLIC_API_URL);
+}
+
 export function createApiClient(options: ClientOptions = {}) {
   const fetchImplementation = options.fetchImplementation ?? fetch;
   const timeoutMs = options.timeoutMs ?? 12_000;
@@ -74,7 +79,7 @@ export function createApiClient(options: ClientOptions = {}) {
         });
         if (!response.ok) {
           const body = (await response.json().catch(() => ({}))) as {
-            error?: { code?: string; message?: string };
+            error?: { code?: string; message?: string; requestId?: string };
           };
           const kind: ApiErrorKind =
             response.status === 401
@@ -89,6 +94,7 @@ export function createApiClient(options: ClientOptions = {}) {
             kind,
             response.status,
             body.error?.code,
+            body.error?.requestId,
           );
         }
         if (response.status === 204) return undefined as T;

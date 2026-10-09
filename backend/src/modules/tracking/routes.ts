@@ -11,8 +11,8 @@ const positionSchema = z.object({
   latitude: z.number().finite().min(-90).max(90),
   longitude: z.number().finite().min(-180).max(180),
   accuracy: z.number().finite().min(0).max(5_000),
-  heading: z.number().finite().min(0).max(360).nullable().optional(),
-  speed: z.number().finite().min(0).max(100).nullable().optional(),
+  heading: z.number().finite().min(-1).max(360).nullable().optional().transform((value) => value !== null && value !== undefined && value < 0 ? null : value),
+  speed: z.number().finite().min(-1).max(100).nullable().optional().transform((value) => value !== null && value !== undefined && value < 0 ? null : value),
   recordedAt: z.coerce.date(),
 });
 
@@ -136,7 +136,10 @@ export async function registerTrackingRoutes(
       });
       if (active && active.driverId !== auth.driverId)
         throw conflict("TRACKING_ALREADY_ACTIVE", "El servicio ya tiene otro seguimiento activo");
-      if (active) return reply.send({ data: sessionView(active) });
+      if (active) {
+        request.log.info({ requestId: request.id, organizationId: auth.organizationId, serviceId: service.id, trackingSessionId: active.id, outcome: "already_active" }, "Tracking session confirmed");
+        return reply.send({ data: sessionView(active) });
+      }
 
       const session = await database.$transaction(async (tx) => {
         const created = await tx.trackingSession.create({
@@ -172,6 +175,7 @@ export async function registerTrackingRoutes(
         });
         return created;
       });
+      request.log.info({ requestId: request.id, organizationId: auth.organizationId, serviceId: service.id, trackingSessionId: session.id, outcome: "started" }, "Tracking session confirmed");
       return reply.code(201).send({ data: sessionView(session) });
     },
   );
@@ -193,22 +197,10 @@ export async function registerTrackingRoutes(
       if (!session)
         throw conflict("TRACKING_NOT_ACTIVE", "Inicia el seguimiento antes de enviar posiciones");
 
-      const duplicate = await database.locationHistory.findUnique({
-        where: { serviceId_sampleId: { serviceId: service.id, sampleId: input.sampleId } },
-      });
-      if (duplicate) {
-        const current = await database.currentPosition.findUnique({ where: { serviceId: service.id } });
-        if (!current || input.recordedAt >= current.recordedAt)
-          await processOperationalPosition(database, config, service.id, input, request.id);
-        return { data: { accepted: true, duplicate: true, stale: false, current: current ? positionView(current) : null } };
-      }
-
       const receivedAt = new Date();
-      const currentBefore = await database.currentPosition.findUnique({ where: { serviceId: service.id } });
-      const stale = currentBefore ? input.recordedAt <= currentBefore.recordedAt : false;
-      const current = await database.$transaction(async (tx) => {
-        await tx.locationHistory.create({
-          data: {
+      const saved = await database.$transaction(async (tx) => {
+        const inserted = await tx.locationHistory.createMany({
+          data: [{
             organizationId: auth.organizationId,
             serviceId: service.id,
             driverId: auth.driverId,
@@ -220,10 +212,15 @@ export async function registerTrackingRoutes(
             recordedAt: input.recordedAt,
             receivedAt,
             sampleId: input.sampleId,
-          },
+          }],
+          skipDuplicates: true,
         });
-        if (stale) return currentBefore;
-        return tx.currentPosition.upsert({
+        const currentBefore = await tx.currentPosition.findUnique({ where: { serviceId: service.id } });
+        if (inserted.count === 0)
+          return { duplicate: true, stale: false, current: currentBefore };
+        const stale = currentBefore ? input.recordedAt <= currentBefore.recordedAt : false;
+        if (stale) return { duplicate: false, stale: true, current: currentBefore };
+        const current = await tx.currentPosition.upsert({
           where: { serviceId: service.id },
           create: {
             organizationId: auth.organizationId,
@@ -250,10 +247,12 @@ export async function registerTrackingRoutes(
             sampleId: input.sampleId,
           },
         });
+        return { duplicate: false, stale: false, current };
       });
-      if (!stale)
+      if (!saved.duplicate && !saved.stale)
         await processOperationalPosition(database, config, service.id, input, request.id);
-      return { data: { accepted: true, duplicate: false, stale, current: current ? positionView(current) : null } };
+      request.log.info({ requestId: request.id, organizationId: auth.organizationId, serviceId: service.id, trackingSessionId: session.id, sampleId: input.sampleId, outcome: saved.duplicate ? "duplicate" : saved.stale ? "accepted_stale" : "accepted" }, "Tracking position processed");
+      return { data: { accepted: true, duplicate: saved.duplicate, stale: saved.stale, current: saved.current ? positionView(saved.current) : null } };
     },
   );
 
@@ -303,6 +302,7 @@ export async function registerTrackingRoutes(
         });
         return result;
       });
+      request.log.info({ requestId: request.id, organizationId: auth.organizationId, serviceId: service.id, trackingSessionId: updated.id, outcome: "stopped" }, "Tracking session stopped");
       return { data: { stopped: true, session: sessionView(updated) } };
     },
   );

@@ -52,7 +52,7 @@ El cliente PostgreSQL limita el tiempo de conexión y consulta. Esto evita acumu
 
 ## Tracking GPS v0.4
 
-El teléfono solo puede iniciar, enviar o detener tracking con una sesión Bearer válida, rol `DRIVER`, `Driver.userId` coincidente, organización derivada de la membership y asignación activa del servicio. El transportista solo consulta servicios de su organización; los clientes no tienen acceso a estas rutas en v0.4. Las coordenadas se validan y se minimizan: no se escriben en logs generales ni en `AuditLog` por cada muestra. La cola móvil está limitada, no contiene tokens y se limpia al detener o cerrar sesión.
+El teléfono solo puede iniciar, enviar o detener tracking con una sesión Bearer válida, rol `DRIVER`, `Driver.userId` coincidente, organización derivada de la membership y asignación activa del servicio. El transportista solo consulta servicios de su organización; los clientes no tienen acceso a estas rutas en v0.4. Las coordenadas se validan y se minimizan: no se escriben en logs generales ni en `AuditLog` por cada muestra. La instrumentación usa identificadores operativos y `requestId`, sin coordenadas, tokens, hashes ni contraseñas. La cola móvil está limitada, no contiene tokens y separa muestras por servicio y sesión. Los rechazos permanentes se archivan de forma acotada; los fallos temporales conservan la muestra hasta confirmación del servidor.
 
 La implementación no demuestra que el GPS sea imposible de manipular. Antes de producción deben fijarse finalidad, base jurídica, información al conductor, retención, borrado, acceso y auditoría conforme al marco español y europeo de protección de datos.
 

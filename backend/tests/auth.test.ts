@@ -62,6 +62,20 @@ describe("autenticación, sesiones y tenant", () => {
     expect(me.json().data.permissions).toContain("orders:create");
   });
 
+  it("conserva el estado HTTP de un tipo de contenido no compatible", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mobile-login",
+      headers: { "content-type": "application/xml" },
+      payload: "<login />",
+    });
+    expect(response.statusCode).toBe(415);
+    expect(response.json()).toMatchObject({
+      error: { code: "UNSUPPORTED_MEDIA_TYPE" },
+    });
+    expect(response.json().error.requestId).toBeTruthy();
+  });
+
   it("rechaza credenciales incorrectas sin enumerar usuarios", async () => {
     const known = await login("cliente@demo.nexo.local", "incorrecta-123");
     const unknown = await login(

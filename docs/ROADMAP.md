@@ -39,6 +39,12 @@ GPS foreground consentido con Expo Location, sesiones explícitas, posiciones ac
 
 ETA mediante proveedor sustituible, estado de retraso, geofences con histéresis, incidencias operativas, notificaciones internas y panel de excepciones. Sin clave servidor de Google Routes la ETA se muestra como no disponible. La llegada GPS no completa la entrega.
 
+### v0.5.1 — Corrección GPS end-to-end
+
+**STATUS: IMPLEMENTADO TÉCNICAMENTE — VALIDACIÓN FÍSICA PENDIENTE**
+
+Corrige los centinelas negativos de sensores iOS, la clasificación de errores y los reintentos de la cola móvil, refuerza la idempotencia concurrente y añade diagnóstico en móvil, backend y portal. La verificación automatizada y por API local no sustituye la prueba del GPS de un iPhone real.
+
 ## v0.6 — Documents & POD
 
 Almacenamiento privado, cámara/firma, POD y validación.

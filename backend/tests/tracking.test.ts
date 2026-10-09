@@ -82,6 +82,24 @@ describe("live GPS tracking", () => {
     expect(position.statusCode).toBe(200);
     expect(position.json().data.current.latitude).toBe(39.4699);
 
+    const iosSentinels = await app.inject({
+      method: "POST",
+      url: `/api/v1/driver/services/${serviceId}/tracking/positions`,
+      headers: bearer(token),
+      payload: {
+        sampleId: "sample-ios-sentinels",
+        latitude: 39.4699,
+        longitude: -0.3763,
+        accuracy: 18,
+        heading: -1,
+        speed: -1,
+        recordedAt: new Date(Date.now() + 100).toISOString(),
+      },
+    });
+    expect(iosSentinels.statusCode, iosSentinels.body).toBe(200);
+    expect(iosSentinels.json().data.current.heading).toBeNull();
+    expect(iosSentinels.json().data.current.speed).toBeNull();
+
     const duplicate = await app.inject({
       method: "POST",
       url: `/api/v1/driver/services/${serviceId}/tracking/positions`,
@@ -119,7 +137,21 @@ describe("live GPS tracking", () => {
       headers: bearer(token),
     });
     expect(current.statusCode).toBe(200);
-    expect(current.json().data.history).toHaveLength(2);
+    expect(current.json().data.history).toHaveLength(3);
+
+    const racePayload = {
+      sampleId: "sample-concurrent-duplicate",
+      latitude: 39.47,
+      longitude: -0.37,
+      accuracy: 9,
+      recordedAt: new Date(Date.now() + 200).toISOString(),
+    };
+    const concurrent = await Promise.all([
+      app.inject({ method: "POST", url: `/api/v1/driver/services/${serviceId}/tracking/positions`, headers: bearer(token), payload: racePayload }),
+      app.inject({ method: "POST", url: `/api/v1/driver/services/${serviceId}/tracking/positions`, headers: bearer(token), payload: racePayload }),
+    ]);
+    expect(concurrent.map((response) => response.statusCode)).toEqual([200, 200]);
+    expect(concurrent.map((response) => response.json().data.duplicate).sort()).toEqual([false, true]);
 
     const stopped = await app.inject({
       method: "POST",

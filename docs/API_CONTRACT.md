@@ -114,7 +114,9 @@ La primera petición válida cambia el estado a `DRIVER_ACCEPTED`, fija `Assignm
 
 ## Tracking GPS v0.4
 
-El teléfono nunca envía `driverId` ni `organizationId` como autoridad. El backend los deriva de `Session → Membership → Driver → Assignment → Service`. Las posiciones exigen `sampleId`, coordenadas válidas, precisión, timestamp no futuro y antigüedad máxima de 24 horas. Una muestra repetida es idempotente y una muestra antigua no reemplaza `CurrentPosition`.
+El teléfono nunca envía `driverId` ni `organizationId` como autoridad. El backend los deriva de `Session → Membership → Driver → Assignment → Service`. Las posiciones exigen `sampleId`, coordenadas válidas, precisión, timestamp no futuro y antigüedad máxima de 24 horas. `speed` y `heading` son opcionales; el centinela `-1` que puede emitir iOS cuando no existe lectura se normaliza a `null`. Una muestra repetida es idempotente, incluso ante dos peticiones concurrentes, y una muestra antigua no reemplaza `CurrentPosition`.
+
+Los errores `400`, `401`, `403`, `404`, `409`, `415`, `422`, `429` y `5xx` conservan su estado HTTP y devuelven un `requestId`. La app solo reintenta automáticamente errores de red, timeout o servidor; no convierte rechazos permanentes en un estado offline.
 
 La respuesta separa `CurrentPosition` (lectura rápida) de `LocationHistory` (muestras aceptadas). La retención es configurable como decisión pendiente; no se borran posiciones automáticamente en v0.4.
 

@@ -2,9 +2,7 @@
 
 La posición de un camión debe proceder del backend de tracking, un proveedor telemático autorizado o la app del conductor con permisos explícitos. Google Maps solo dibuja la posición recibida; no localiza vehículos por sí mismo.
 
-Las vistas web heredadas pueden mostrar un punto fijo de demostración en Tarancón para NV-24081 y lo identifican como DEMO. La app Driver v0.3 no consume esa posición simulada, no solicita permisos de ubicación y no implementa GPS del dispositivo, histórico, ETA ni transmisión en segundo plano.
-
-La integración de tracking pertenece a v0.4. Expo es compatible con una futura evaluación de `expo-location`, pero el tracking en segundo plano probablemente requerirá Expo Development Build/EAS y configuración nativa; no forma parte de Expo Go en este hito. Antes de activarla hay que definir el consentimiento del conductor, la retención, la frecuencia, la precisión, el tratamiento offline y el contrato de un proveedor real. La posición nunca se aceptará desde parámetros libres del cliente.
+Las vistas web heredadas pueden mostrar un punto fijo de demostración en Tarancón para NV-24081 y lo identifican como DEMO. El flujo de producto de `backend/`, `frontend/` y `mobile/` no utiliza esa posición simulada.
 
 Interfaz objetivo:
 
@@ -23,11 +21,17 @@ Adaptadores previstos: `MockTrackingProvider`, `GesProvider` cuando exista acces
 
 ## v0.4 implementado
 
-El conductor inicia y detiene el seguimiento desde el detalle del servicio. La app usa `expo-location` en primer plano con una muestra cada 15 segundos o 100 metros, envía por HTTPS Bearer y conserva una cola limitada de hasta 100 posiciones en `expo-secure-store` cuando hay un corte breve. La cola no almacena tokens dentro de sus registros y se limpia al detener o cerrar sesión.
+El conductor inicia y detiene el seguimiento desde el detalle del servicio. La app usa `expo-location` en primer plano con una muestra cada 15 segundos o 100 metros, envía por HTTPS Bearer y conserva una cola limitada de hasta 100 posiciones en `expo-secure-store`. Cada muestra queda ligada al servicio y a la sesión de tracking que la originó. Solo se elimina tras una respuesta satisfactoria; los fallos temporales conservan el mismo `sampleId` y usan backoff acotado, mientras que los rechazos permanentes se archivan como diagnóstico y dejan de reintentarse.
 
 El backend persiste `TrackingSession`, `CurrentPosition` y `LocationHistory`, valida coordenadas, precisión, timestamp, antigüedad, orden temporal y duplicados. El transportista consulta el current y el histórico mediante polling cada 10 segundos. Google Maps dibuja únicamente posiciones recibidas del backend.
 
 El mapa distingue `GPS REAL`, `SIN POSICIÓN` y `POSICIÓN DESACTUALIZADA`. Sin `VITE_GOOGLE_MAPS_API_KEY` muestra una vista de configuración con las coordenadas recibidas, sin inventar un marcador.
+
+## Corrección v0.5.1
+
+iOS puede entregar `-1` en `speed` o `heading` cuando el sensor no dispone de esos valores. La app normaliza esos centinelas a `null` y el backend aplica la misma normalización defensiva. Coordenadas, precisión y timestamps siguen sujetos a validación estricta.
+
+La API registra el resultado de inicio, recepción y parada con `requestId`, organización, servicio, sesión y `sampleId`, sin registrar coordenadas, tokens ni credenciales. La inserción del histórico usa la restricción única de `sampleId` de forma atómica, de modo que reintentos concurrentes son idempotentes. El portal incluye un panel independiente del mapa con estado de sesión, última recepción, antigüedad, precisión y número de muestras.
 
 ## Límites físicos
 

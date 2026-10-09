@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ApiStatus } from "@/components/nexo/ApiStatus";
 import { Panel } from "@/components/nexo/ui";
 import { LiveTrackingMap } from "@/components/transportista/LiveTrackingMap";
+import { TrackingDiagnostics } from "@/components/transportista/TrackingDiagnostics";
 import { usePortalSession } from "@/lib/auth/use-portal";
 import {
   useApiDrivers,
@@ -29,6 +30,8 @@ export function BackendServiceOps({ service }: { service: ApiService }) {
   const [driverId, setDriverId] = useState(service.assignment?.driverId ?? "");
   const [vehicleId, setVehicleId] = useState(service.assignment?.vehicleId ?? "");
   const selectClass = "h-10 w-full rounded-lg border bg-card px-3 text-sm";
+  const currentPosition = tracking.data?.current ?? null;
+  const trackingSession = tracking.data?.session ?? null;
 
   const confirmAssignment = () => {
     assign.mutate(
@@ -138,11 +141,14 @@ export function BackendServiceOps({ service }: { service: ApiService }) {
           {tracking.isError ? (
             <p className="text-sm text-muted-foreground">No se pudo consultar el tracking: {tracking.error.message}</p>
           ) : (
-            <LiveTrackingMap
-              position={tracking.data?.current ?? null}
-              history={trackingHistory.data ?? []}
-              session={tracking.data?.session ?? null}
-            />
+            <div className="space-y-4">
+              <TrackingDiagnostics position={currentPosition} historyCount={trackingHistory.data?.length ?? 0} session={trackingSession} />
+              <LiveTrackingMap
+                position={currentPosition}
+                history={trackingHistory.data ?? []}
+                session={trackingSession}
+              />
+            </div>
           )}
         </Panel>
 
