@@ -14,7 +14,7 @@ La app no envía `driverId`. Fastify lo deriva de la sesión, aplica RBAC, organ
 ## Implementación
 
 - `src/app`: rutas Expo Router `login`, `services` y `services/[id]`.
-- `src/api`: cliente central con base URL HTTPS, Bearer, JSON, timeout y errores seguros.
+- `src/api`: cliente central con base URL HTTPS, Bearer, JSON/multipart, timeout y errores seguros.
 - `src/auth`: ciclo de sesión y abstracción `AuthStorage` sobre `expo-secure-store`.
 - `src/hooks`: conectividad con `expo-network`.
 - `src/tracking`: controlador de GPS foreground, estados visibles y cola segura limitada.
@@ -24,10 +24,18 @@ La app no envía `driverId`. Fastify lo deriva de la sesión, aplica RBAC, organ
 
 La dependencia `expo-location` está declarada en `mobile/package.json` y fijada en `mobile/pnpm-lock.yaml`. La validación se realizó con `pnpm install --frozen-lockfile --ignore-scripts`; en el dispositivo se debe instalar el proyecto antes de iniciar Expo Go.
 
+## POD v0.6
+
+NEXO Driver usa `expo-image-picker` para tomar una fotografía o seleccionar imágenes cuando el conductor pulsa la acción correspondiente. Los permisos se solicitan en ese momento, no al arrancar. El formulario admite receptor opcional, observaciones y hasta cuatro evidencias; muestra éxito solo después de recibir el POD persistido por Fastify.
+
+Desde el detalle de cada servicio existe también la pantalla accesible `Entrega y documentos`, donde el conductor consulta los archivos compartidos, añade una fotografía documental y revisa el estado del POD sin introducir rutas ni usar endpoints manualmente.
+
+El archivo viaja como multipart con el token Bearer opaco. El backend valida asignación, tamaño, MIME, contenido, duplicados y tenant. La app muestra `SUBMITTED`, `IN_REVIEW`, `APPROVED` o `REJECTED`, incluido el motivo disponible. No se ha implementado firma dibujada en v0.6.
+
 ## Capacitor anterior
 
 La implementación Capacitor en `/frontend` queda **DEPRECATED para Driver App** y se conserva temporalmente como referencia/fallback. Ya no es la arquitectura móvil elegida. Sus portales React web, contratos API y lógica compartible siguen siendo válidos.
 
 ## Límites
 
-Expo Go es un cliente de desarrollo. v0.4 implementa GPS foreground con `expo-location`, pero no promete ejecución continua en segundo plano. EAS y Development Build se evaluarán cuando una capacidad nativa lo exija. ETA, geofences, push, cámara, POD y firma siguen fuera de alcance.
+Expo Go es un cliente de desarrollo. v0.4 implementa GPS foreground con `expo-location`, pero no promete ejecución continua en segundo plano. La cámara/galería y el POD están implementados; la firma, push y tracking background siguen fuera. El siguiente paso nativo está definido en `BACKGROUND_TRACKING_PLAN.md` para v0.6.5.

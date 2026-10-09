@@ -7,9 +7,9 @@ import hero from "@/assets/hero-truck.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Transport Copilot OS — Plataforma operativa de transporte" },
+      { title: "NEXO Copilot — Transport Copilot OS" },
       { name: "description", content: "Conecta cargador, transportista y conductor en un único flujo: seguimiento, POD, incidencias y facturación." },
-      { property: "og:title", content: "Transport Copilot OS" },
+      { property: "og:title", content: "NEXO Copilot" },
       { property: "og:description", content: "Una plataforma, tres portales: cliente, transportista y conductor." },
     ],
   }),
@@ -51,7 +51,7 @@ function Landing() {
             <Button asChild variant="secondary"><Link to="/acceso">Acceder al portal</Link></Button>
           </nav>
           <div className="max-w-2xl py-20 sm:py-28">
-            <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-ink-muted">Plataforma SaaS B2B de transporte</p>
+            <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-ink-muted">NEXO Copilot · Transport Copilot OS</p>
             <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">El sistema operativo que conecta cargador, transportista y conductor.</h1>
             <p className="mt-5 text-lg text-ink-muted">Un único flujo para cada servicio: desde el pedido hasta la factura, con seguimiento, documentos e incidencias compartidos y con permisos por rol.</p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -111,7 +111,7 @@ function Landing() {
       <footer className="border-t py-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 text-sm text-muted-foreground">
           <Logo />
-          <span className="flex items-center gap-2"><DemoBadge /> Entorno de demostración. Empresas y datos ficticios.</span>
+          <span className="flex items-center gap-2"><DemoBadge /> Entorno de demostración · NEXO Technologies.</span>
         </div>
       </footer>
     </div>

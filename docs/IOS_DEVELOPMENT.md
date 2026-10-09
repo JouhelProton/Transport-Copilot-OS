@@ -4,7 +4,7 @@
 
 ## Estado y requisitos
 
-El proyecto SPM está generado en `frontend/ios/App/App.xcodeproj`, con bundle id temporal `com.transportcopilot.driver`, nombre `Transport Copilot Driver` y deployment target iOS 15. La generación y sincronización estática se hizo en Windows. Compilar, firmar e instalar iOS requiere un Mac con macOS, Xcode 26 o superior para Capacitor 8, Xcode Command Line Tools y un iPhone compatible.
+El proyecto SPM está generado en `frontend/ios/App/App.xcodeproj`, con bundle id temporal `com.transportcopilot.driver`, nombre `NEXO Driver` y deployment target iOS 15. La generación y sincronización estática se hizo en Windows. Compilar, firmar e instalar iOS requiere un Mac con macOS, Xcode 26 o superior para Capacitor 8, Xcode Command Line Tools y un iPhone compatible.
 
 Un Apple Account gratuito permite usar el equipo personal de Xcode para pruebas directas en dispositivos propios, con límites y firmas de desarrollo de corta duración. Apple Developer Program es necesario para App Store Connect/TestFlight, distribución sostenida y capacidades de equipo. Comprueba siempre las condiciones vigentes de Apple antes de distribuir.
 

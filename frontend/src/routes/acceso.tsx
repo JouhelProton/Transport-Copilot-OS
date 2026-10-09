@@ -6,9 +6,9 @@ export const Route = createFileRoute("/acceso")({
   validateSearch: (s: Record<string, unknown>): { demo?: boolean } => ({ demo: s.demo === true || s.demo === "true" ? true : undefined }),
   head: () => ({
     meta: [
-      { title: "Elige tu acceso — Transport Copilot OS" },
+      { title: "Elige tu acceso — NEXO Copilot" },
       { name: "description", content: "Selecciona tu portal: cliente, transportista o conductor." },
-      { property: "og:title", content: "Elige tu acceso — Transport Copilot OS" },
+      { property: "og:title", content: "Elige tu acceso — NEXO Copilot" },
       { property: "og:description", content: "Selecciona tu portal: cliente, transportista o conductor." },
     ],
   }),

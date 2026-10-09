@@ -50,6 +50,13 @@ const envSchema = z.object({
   DELAY_CONFIRMED_MINUTES: z.coerce.number().int().min(1).max(240).default(30),
   GEOFENCE_RADIUS_METERS: z.coerce.number().int().min(50).max(5_000).default(250),
   GEOFENCE_MAX_ACCURACY_METERS: z.coerce.number().min(5).max(1_000).default(100),
+  DOCUMENT_STORAGE_ROOT: z.string().trim().min(1).default(".local-data/documents"),
+  DOCUMENT_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .max(25 * 1024 * 1024)
+    .default(10 * 1024 * 1024),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

@@ -13,6 +13,7 @@ const healthyReady = {
   status: "ok",
   service: "transport-copilot-backend",
   database: "ready",
+  features: { documentsPod: true },
 };
 
 test("propone arrancar el backend cuando el puerto está libre", async () => {

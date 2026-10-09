@@ -39,7 +39,7 @@ export function findListeningPid(port, platform = process.platform) {
 }
 
 export function isCompatibleReady(body) {
-  return body?.status === "ok" && body?.service === NEXO_BACKEND_SERVICE && body?.database === "ready";
+  return body?.status === "ok" && body?.service === NEXO_BACKEND_SERVICE && body?.database === "ready" && body?.features?.documentsPod === true;
 }
 
 export async function inspectBackendPort({

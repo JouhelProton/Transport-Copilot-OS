@@ -15,6 +15,14 @@ export const PERMISSIONS = [
   "driver:incidents:create",
   "operations:read",
   "notifications:read",
+  "documents:read",
+  "documents:write",
+  "documents:validate",
+  "pod:read",
+  "pod:validate",
+  "driver:documents:read",
+  "driver:documents:write",
+  "driver:pod:submit",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -34,10 +42,15 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "incidents:manage",
     "operations:read",
     "notifications:read",
+    "documents:read",
+    "documents:write",
+    "documents:validate",
+    "pod:read",
+    "pod:validate",
   ],
-  ACCOUNTING: ["orders:read", "services:read"],
-  DRIVER: ["driver:services:read", "driver:services:accept", "driver:incidents:create"],
-  CUSTOMER: ["orders:create", "orders:read", "services:read"],
+  ACCOUNTING: ["orders:read", "services:read", "documents:read", "pod:read"],
+  DRIVER: ["driver:services:read", "driver:services:accept", "driver:incidents:create", "documents:read", "driver:documents:read", "driver:documents:write", "driver:pod:submit"],
+  CUSTOMER: ["orders:create", "orders:read", "services:read", "documents:read", "pod:read"],
 };
 
 export const permissionsFor = (role: Role): Permission[] => [

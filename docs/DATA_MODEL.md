@@ -24,6 +24,10 @@ El schema real vive en `backend/prisma/schema.prisma`. PostgreSQL es la persiste
 | `ServiceGeofence` / `GeofenceEvent` | Estado y transiciones verificables de origen/destino con histéresis.                  |
 | `OperationalIncident` / `IncidentHistory` | Incidencia de servicio e historial inmutable de cambios.                           |
 | `InternalNotification` | Aviso interno deduplicado por organización.                                                        |
+| `Document`             | Metadatos, hash, visibilidad, estado y clave privada de un archivo asociado al servicio.           |
+| `DocumentValidationHistory` | Historial inmutable de revisión, aprobación o rechazo documental.                             |
+| `ProofOfDelivery`      | Entrega declarada por conductor, receptor opcional, observaciones y código de verificación.        |
+| `PodValidationHistory` | Historial de envío, revisión, aprobación y rechazo del POD.                                        |
 
 ## Relaciones
 
@@ -42,6 +46,10 @@ Service 1─0..1 ServiceOperationalState
 Service 1─* ServiceGeofence 1─* GeofenceEvent
 Service 1─* OperationalIncident 1─* IncidentHistory
 Service 1─* InternalNotification
+Service 1─* Document *─0..1 ProofOfDelivery
+Service 1─0..1 ProofOfDelivery *─1 Driver
+Document 1─* DocumentValidationHistory
+ProofOfDelivery 1─* PodValidationHistory
 Organization/User 1─* AuditLog
 ```
 
@@ -70,7 +78,13 @@ La cadena móvil es inequívoca: `User → Membership(role=DRIVER) → Driver.us
 
 ## Entidades todavía conceptuales o DEMO
 
-`DECA`, `Location`, `Document`, `POD`, `Invoice`, `Message`, `Automation`, `AutomationExecution` e `Integration` no están todavía en el schema productivo. Sus pantallas y datos permanecen en el backend de demostración del navegador o en la demo legacy.
+`DECA`, `Location`, `Invoice`, `Message`, `Automation`, `AutomationExecution` e `Integration` no están todavía en el schema productivo. `Document` y `ProofOfDelivery` son entidades reales desde v0.6; la firma y el flujo completo DECA siguen pendientes.
+
+## Documents & POD v0.6
+
+`Document.storageKey` es un identificador interno y nunca forma parte de la respuesta pública. `(serviceId, sha256)` impide duplicar el mismo contenido dentro de un servicio. `DocumentVisibility` separa documentos compartidos e internos, y `DocumentStatus` controla revisión, aprobación y rechazo.
+
+`ProofOfDelivery` es único por servicio y conserva la hora declarada de entrega y la hora de recepción del servidor. `receiverName` es opcional para no inventar datos. `verificationCode` es aleatorio y solo se muestra a usuarios autenticados y autorizados; no constituye por sí solo firma electrónica cualificada.
 
 ## Operations Intelligence v0.5
 

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Transport Copilot Driver",
+    "name": "NEXO Driver",
     "slug": "transport-copilot-driver",
     "version": "0.3.5",
     "orientation": "portrait",
@@ -25,6 +25,13 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NEXO Driver necesita acceder a la imagen seleccionada para adjuntarla como prueba de entrega.",
+          "cameraPermission": "NEXO Driver necesita usar la cámara cuando decides fotografiar una prueba de entrega."
+        }
+      ],
       [
         "expo-splash-screen",
         {

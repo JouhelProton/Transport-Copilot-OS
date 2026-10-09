@@ -1,4 +1,4 @@
-# Probar Transport Copilot Driver en iPhone desde Windows
+# Probar NEXO Driver en iPhone desde Windows
 
 > **LEGACY PWA:** esta guía conserva el preview Safari/Capacitor anterior. Para la Driver App React Native oficial candidata y Expo Go usa `docs/EXPO_DRIVER_APP.md` y `pnpm mobile:dev`.
 

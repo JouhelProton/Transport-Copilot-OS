@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Transport Copilot OS conecta cliente, transportista y conductor en un flujo operativo compartido. El principio de producto es: **el operador decide; el sistema ejecuta las acciones autorizadas y deja trazabilidad**.
+NEXO Copilot, descrito como Transport Copilot OS y desarrollado por NEXO Technologies, conecta cliente, transportista y conductor en un flujo operativo compartido. El principio de producto es: **el operador decide; el sistema ejecuta las acciones autorizadas y deja trazabilidad**.
 
 ## Estructura actual
 
@@ -49,6 +49,7 @@ backend/
       resources/         conductores y vehículos
       driver/            consulta aislada y aceptación idempotente
       tracking/          sesiones, posiciones, histórico y autorización GPS
+      documents/         API, permisos y almacenamiento privado de documentos/POD
     plugins/             Prisma/PostgreSQL
     shared/              errores y presenters del API
   prisma/
@@ -65,6 +66,12 @@ Tracking separa captura (Expo Location), envío (controlador con cola limitada),
 Operations Intelligence consume posiciones persistidas y mantiene proyecciones separadas: ETA, estado operativo, geofences, incidencias y notificaciones. `EtaProvider` desacopla Google Routes del dominio. El cálculo se limita por tiempo y distancia; los eventos de geofence usan precisión e histéresis. El panel web consulta `/operations/exceptions` cada 30 segundos.
 
 El adaptador PostgreSQL aplica timeouts finitos de conexión y consulta para que una caída del motor no deje peticiones pendientes indefinidamente. `/health` comprueba el proceso y `/ready` comprueba además PostgreSQL; los orquestadores de desarrollo esperan readiness antes de publicar la API.
+
+## Documents & POD v0.6
+
+Los binarios se guardan fuera de PostgreSQL mediante `PrivateDocumentStorage`. El adaptador local escribe con identificadores UUID impredecibles, creación exclusiva y un directorio privado que no se sirve como contenido estático. PostgreSQL conserva metadatos, SHA-256, estado, visibilidad, actor e historial. La interfaz permite sustituir el adaptador por almacenamiento S3-compatible sin cambiar el contrato HTTP.
+
+La autorización parte siempre de la sesión: el transportista accede solo a servicios de su organización; el conductor necesita una asignación activa; el cliente necesita ser la organización cliente participante y solo recibe documentos `SHARED + APPROVED` y POD aprobado. Las descargas atraviesan Fastify y nunca revelan rutas del disco.
 
 ## Identidad, sesión y tenant
 

@@ -7,9 +7,9 @@ export const Route = createFileRoute("/transportista")({
   ssr: false,
   beforeLoad: portalGuard("transportista"),
   head: () => ({ meta: [
-    { title: "Portal transportista — Transport Copilot OS" },
+    { title: "Portal transportista — NEXO Copilot" },
     { name: "description", content: "Portal operativo de la empresa transportista." },
-    { property: "og:title", content: "Portal transportista — Transport Copilot OS" },
+    { property: "og:title", content: "Portal transportista — NEXO Copilot" },
     { property: "og:description", content: "Portal operativo de la empresa transportista." },
     { name: "robots", content: "noindex" },
   ] }),
@@ -31,5 +31,3 @@ export const Route = createFileRoute("/transportista")({
     </PortalShell>
   ),
 });
-
-

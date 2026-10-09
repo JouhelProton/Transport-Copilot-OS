@@ -25,4 +25,16 @@ describe("API client", () => {
     const client = createApiClient({ baseUrl: "https://api.example.test", fetchImplementation: fetchMock as typeof fetch });
     await expect(client.request("/driver/services")).rejects.toMatchObject({ kind: "NETWORK" });
   });
+
+  test("does not classify an invalid successful response as a network failure", async () => {
+    const fetchMock = jest.fn(async () => new Response("not-json", { status: 201, headers: { "x-request-id": "req-pod-1" } }));
+    const client = createApiClient({ baseUrl: "https://api.example.test", fetchImplementation: fetchMock as typeof fetch });
+    await expect(client.request("/driver/services/svc/pod", { method: "POST" })).rejects.toMatchObject({ kind: "SERVER", code: "INVALID_JSON", requestId: "req-pod-1" });
+  });
+
+  test("shows the backend request reference for an actionable HTTP failure", () => {
+    expect(friendlyApiMessage(new ApiError("conflict", "REQUEST", 409, "CONFLICT", "req-pod-2"))).toBe(
+      "No hemos podido completar la operación. Referencia: req-pod-2.",
+    );
+  });
 });

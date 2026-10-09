@@ -127,6 +127,9 @@ export function PortalShell({
           </nav>
         </header>
         <main className="flex-1 px-4 py-6 lg:px-8">{children}</main>
+        <footer className="border-t px-4 py-4 text-xs text-muted-foreground lg:px-8">
+          © 2026 NEXO Technologies · NEXO Copilot · Transport Copilot OS
+        </footer>
       </div>
     </div>
   );

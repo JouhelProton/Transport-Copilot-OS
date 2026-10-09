@@ -168,6 +168,51 @@ export interface ApiVehicle {
   status: "AVAILABLE" | "IN_SERVICE" | "MAINTENANCE";
 }
 
+export type DocumentType = "DELIVERY_NOTE" | "CMR" | "POD" | "DELIVERY_PHOTO" | "SERVICE_ATTACHMENT";
+export type DocumentStatus = "UPLOADED" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+export type PodStatus = "PENDING" | "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+
+export interface ApiDocumentHistory {
+  id: string;
+  fromStatus: DocumentStatus | null;
+  toStatus: DocumentStatus;
+  reason: string | null;
+  changedAt: string;
+  changedBy: { id: string; name: string };
+}
+
+export interface ApiDocument {
+  id: string;
+  serviceId: string;
+  podId: string | null;
+  type: DocumentType;
+  visibility: "SHARED" | "INTERNAL";
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  status: DocumentStatus;
+  uploadedAt: string;
+  uploadedBy: { id: string; name: string };
+  history: ApiDocumentHistory[];
+  downloadUrl: string;
+}
+
+export interface ApiPod {
+  id: string;
+  serviceId: string;
+  driver: { id: string; name: string };
+  submittedBy: { id: string; name: string };
+  deliveredAt: string;
+  serverSubmittedAt: string;
+  receiverName: string | null;
+  observations: string | null;
+  status: PodStatus;
+  verificationCode: string;
+  documents: ApiDocument[];
+  history: Array<{ id: string; fromStatus: PodStatus | null; toStatus: PodStatus; reason: string | null; changedAt: string; changedBy: { id: string; name: string } }>;
+}
+
 export interface CreateOrderInput {
   carrierOrganizationId: string;
   reference: string;
@@ -404,4 +449,110 @@ export function useAcceptDriverService(session: Session) {
       });
     },
   });
+}
+
+const documentQueryKey = (session: Session, serviceId?: string) =>
+  ["api", session.organizationId, session.userId, "documents", serviceId ?? "all"] as const;
+
+export function useDocuments(session: Session) {
+  return useQuery({
+    queryKey: documentQueryKey(session),
+    queryFn: () => apiRequest<{ data: ApiDocument[] }>(session, "/documents").then((result) => result.data),
+    enabled: enabledInBrowser(),
+  });
+}
+
+export function useServiceDocuments(session: Session, serviceId: string) {
+  return useQuery({
+    queryKey: documentQueryKey(session, serviceId),
+    queryFn: () => apiRequest<{ data: ApiDocument[] }>(session, `/services/${serviceId}/documents`).then((result) => result.data),
+    enabled: enabledInBrowser() && Boolean(serviceId),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useServicePod(session: Session, serviceId: string) {
+  return useQuery({
+    queryKey: ["api", session.organizationId, session.userId, "pod", serviceId],
+    queryFn: () => apiRequest<{ data: ApiPod | null }>(session, `/services/${serviceId}/pod`).then((result) => result.data),
+    enabled: enabledInBrowser() && Boolean(serviceId),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useUploadDocument(session: Session, serviceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, type, visibility }: { file: File; type: DocumentType; visibility: "SHARED" | "INTERNAL" }) => {
+      const form = new FormData();
+      form.append("type", type);
+      form.append("visibility", visibility);
+      form.append("file", file);
+      return apiRequest<{ data: ApiDocument }>(session, `/services/${serviceId}/documents`, { method: "POST", body: form }).then((result) => result.data);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: documentQueryKey(session, serviceId) }),
+        queryClient.invalidateQueries({ queryKey: documentQueryKey(session) }),
+      ]);
+    },
+  });
+}
+
+export function useGenerateDocument(session: Session, serviceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (type: "DELIVERY_NOTE" | "POD") =>
+      apiRequest<{ data: ApiDocument }>(session, `/services/${serviceId}/documents/generate`, { method: "POST", body: JSON.stringify({ type }) }).then((result) => result.data),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: documentQueryKey(session, serviceId) }),
+        queryClient.invalidateQueries({ queryKey: documentQueryKey(session) }),
+      ]);
+    },
+  });
+}
+
+export function useUpdateDocumentStatus(session: Session, serviceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ documentId, status, reason }: { documentId: string; status: "IN_REVIEW" | "APPROVED" | "REJECTED"; reason?: string }) =>
+      apiRequest<{ data: ApiDocument }>(session, `/services/${serviceId}/documents/${documentId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(reason ? { reason } : {}) }) }).then((result) => result.data),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: documentQueryKey(session, serviceId) }),
+        queryClient.invalidateQueries({ queryKey: documentQueryKey(session) }),
+      ]);
+    },
+  });
+}
+
+export function useUpdatePodStatus(session: Session, serviceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ status, reason }: { status: "IN_REVIEW" | "APPROVED" | "REJECTED"; reason?: string }) =>
+      apiRequest<{ data: ApiPod }>(session, `/services/${serviceId}/pod/status`, { method: "PATCH", body: JSON.stringify({ status, ...(reason ? { reason } : {}) }) }).then((result) => result.data),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["api", session.organizationId, session.userId, "pod", serviceId] });
+    },
+  });
+}
+
+export async function downloadDocument(document: ApiDocument) {
+  const response = await apiFetch(document.downloadUrl.replace(/^\/api\/v1/, ""));
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = window.document.createElement("a");
+  anchor.href = url;
+  anchor.download = document.originalName;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function previewDocument(document: ApiDocument) {
+  const response = await apiFetch(document.downloadUrl.replace(/^\/api\/v1/, ""));
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

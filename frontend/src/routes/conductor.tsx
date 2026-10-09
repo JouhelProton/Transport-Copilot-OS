@@ -9,13 +9,13 @@ export const Route = createFileRoute("/conductor")({
   beforeLoad: portalGuard("conductor"),
   head: () => ({
     meta: [
-      { title: "App conductor — Transport Copilot OS" },
+      { title: "NEXO Driver — Transport Copilot OS" },
       {
         name: "description",
         content: "App del conductor: servicio actual, llegada, incidencias, entrega y POD.",
       },
-      { property: "og:title", content: "App conductor — Transport Copilot OS" },
-      { property: "og:description", content: "App móvil del conductor de Transport Copilot OS." },
+      { property: "og:title", content: "NEXO Driver — Transport Copilot OS" },
+      { property: "og:description", content: "NEXO Driver, la aplicación móvil de NEXO Copilot para conductores." },
       { name: "robots", content: "noindex" },
     ],
   }),

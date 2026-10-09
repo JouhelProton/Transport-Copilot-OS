@@ -45,7 +45,7 @@ El arranque inspecciona `127.0.0.1:3101` antes de crear procesos. Reutiliza úni
 
 1. Instalar y abrir Expo Go.
 2. Escanear el QR mostrado por la terminal.
-3. Abrir **Transport Copilot Driver**.
+3. Abrir **NEXO Driver**.
 4. Iniciar sesión con `conductor@demo.nexo.local` / `Demo-Transport-2026!` solo en el seed local.
 5. Abrir **Mis servicios**, entrar en el servicio y pulsar **Aceptar servicio**.
 6. En **Seguimiento GPS**, pulsar **Iniciar seguimiento GPS** y conceder permiso **mientras se usa la app**.

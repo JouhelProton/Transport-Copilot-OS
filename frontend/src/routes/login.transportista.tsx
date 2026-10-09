@@ -5,9 +5,9 @@ import { MOTIVOS, validateLoginSearch } from "@/lib/auth/guard";
 export const Route = createFileRoute("/login/transportista")({
   validateSearch: validateLoginSearch,
   head: () => ({ meta: [
-    { title: "Acceso transportista — Transport Copilot OS" },
+    { title: "Acceso transportista — NEXO Copilot" },
     { name: "description", content: "Acceso al portal operativo de la empresa transportista." },
-    { property: "og:title", content: "Acceso transportista — Transport Copilot OS" },
+    { property: "og:title", content: "Acceso transportista — NEXO Copilot" },
     { property: "og:description", content: "Acceso al portal operativo de la empresa transportista." },
   ] }),
   component: () => {

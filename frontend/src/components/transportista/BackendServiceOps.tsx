@@ -7,6 +7,7 @@ import { ApiStatus } from "@/components/nexo/ApiStatus";
 import { Panel } from "@/components/nexo/ui";
 import { LiveTrackingMap } from "@/components/transportista/LiveTrackingMap";
 import { TrackingDiagnostics } from "@/components/transportista/TrackingDiagnostics";
+import { ServiceDocumentsPanel } from "@/components/documents/ServiceDocumentsPanel";
 import { usePortalSession } from "@/lib/auth/use-portal";
 import {
   useApiDrivers,
@@ -147,6 +148,9 @@ export function BackendServiceOps({ service }: { service: ApiService }) {
                 position={currentPosition}
                 history={trackingHistory.data ?? []}
                 session={trackingSession}
+                serviceReference={service.reference}
+                driverName={service.assignment?.driverName ?? "Sin conductor asignado"}
+                operationalStatus={intelligence.data?.state?.delayLevel ?? service.status}
               />
             </div>
           )}
@@ -164,10 +168,11 @@ export function BackendServiceOps({ service }: { service: ApiService }) {
           </dl>
         </Panel>
 
-        <Panel title="Funciones todavía en modo DEMO">
+        <ServiceDocumentsPanel session={session} serviceId={service.id} canManage />
+
+        <Panel title="Facturación pendiente de implementación">
           <p className="text-sm text-muted-foreground">
-            Documentos, POD y facturación siguen usando los datos de demostración
-            hasta sus próximos hitos.
+            La facturación continúa en modo demostración hasta su hito específico.
           </p>
         </Panel>
       </div>

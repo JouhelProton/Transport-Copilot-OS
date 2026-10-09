@@ -1,4 +1,4 @@
-# Transport Copilot Driver
+# NEXO Driver
 
 Aplicación React Native + Expo exclusiva para conductores. Consulta [docs/EXPO_DRIVER_APP.md](../docs/EXPO_DRIVER_APP.md) para arquitectura, seguridad y prueba en iPhone.
 

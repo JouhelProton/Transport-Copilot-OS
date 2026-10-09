@@ -66,6 +66,38 @@ enum ServiceEventType {
   GEOFENCE_EXITED
   INCIDENT_CREATED
   INCIDENT_UPDATED
+  DOCUMENT_UPLOADED
+  DOCUMENT_STATUS_CHANGED
+  POD_SUBMITTED
+  POD_STATUS_CHANGED
+}
+
+enum DocumentType {
+  DELIVERY_NOTE
+  CMR
+  POD
+  DELIVERY_PHOTO
+  SERVICE_ATTACHMENT
+}
+
+enum DocumentStatus {
+  UPLOADED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum DocumentVisibility {
+  SHARED
+  INTERNAL
+}
+
+enum PodStatus {
+  PENDING
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
 }
 
 enum TrackingSessionStatus {
@@ -125,19 +157,23 @@ enum NotificationType {
   INCIDENT_CREATED
   ARRIVAL_DETECTED
   GPS_STALE
+  POD_SUBMITTED
+  POD_APPROVED
+  POD_REJECTED
+  DOCUMENTATION_READY
 }
 
 model Organization {
-  id                     String            @id
+  id                     String                      @id
   name                   String
   kind                   OrganizationKind
   memberships            Membership[]
-  customers              Customer[]        @relation("CarrierCustomers")
-  customerRepresentation Customer[]        @relation("CustomerOrganization")
-  ownedOrders            Order[]           @relation("OrderOwner")
-  carrierOrders          Order[]           @relation("OrderCarrier")
-  services               Service[]         @relation("ServiceCarrier")
-  customerServices       Service[]         @relation("ServiceCustomer")
+  customers              Customer[]                  @relation("CarrierCustomers")
+  customerRepresentation Customer[]                  @relation("CustomerOrganization")
+  ownedOrders            Order[]                     @relation("OrderOwner")
+  carrierOrders          Order[]                     @relation("OrderCarrier")
+  services               Service[]                   @relation("ServiceCarrier")
+  customerServices       Service[]                   @relation("ServiceCustomer")
   drivers                Driver[]
   vehicles               Vehicle[]
   assignments            Assignment[]
@@ -153,25 +189,33 @@ model Organization {
   incidents              OperationalIncident[]
   incidentHistory        IncidentHistory[]
   notifications          InternalNotification[]
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
+  documents              Document[]
+  documentHistory        DocumentValidationHistory[]
+  proofOfDeliveries      ProofOfDelivery[]
+  podHistory             PodValidationHistory[]
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
 }
 
 model User {
-  id            String       @id
-  email         String       @unique
-  name          String
-  passwordHash  String
-  memberships   Membership[]
-  sessions      Session[]
-  customer      Customer?
-  driver        Driver?
-  createdOrders Order[]      @relation("OrderCreator")
-  auditLogs     AuditLog[]
-  reportedIncidents OperationalIncident[] @relation("IncidentReporter")
-  incidentChanges  IncidentHistory[]       @relation("IncidentChanger")
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                String                      @id
+  email             String                      @unique
+  name              String
+  passwordHash      String
+  memberships       Membership[]
+  sessions          Session[]
+  customer          Customer?
+  driver            Driver?
+  createdOrders     Order[]                     @relation("OrderCreator")
+  auditLogs         AuditLog[]
+  reportedIncidents OperationalIncident[]       @relation("IncidentReporter")
+  incidentChanges   IncidentHistory[]           @relation("IncidentChanger")
+  uploadedDocuments Document[]                  @relation("DocumentUploader")
+  documentChanges   DocumentValidationHistory[] @relation("DocumentValidator")
+  submittedPods     ProofOfDelivery[]           @relation("PodSubmitter")
+  podChanges        PodValidationHistory[]      @relation("PodValidator")
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
 }
 
 model Membership {
@@ -261,52 +305,138 @@ model Order {
 }
 
 model Service {
-  id                     String            @id @default(cuid())
+  id                     String                   @id @default(cuid())
   organizationId         String
   customerOrganizationId String
   customerId             String
-  orderId                String            @unique
-  status                 ServiceStatus     @default(PLANNED)
-  organization           Organization      @relation("ServiceCarrier", fields: [organizationId], references: [id], onDelete: Restrict)
-  customerOrganization   Organization      @relation("ServiceCustomer", fields: [customerOrganizationId], references: [id], onDelete: Restrict)
-  customer               Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  order                  Order             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderId                String                   @unique
+  status                 ServiceStatus            @default(PLANNED)
+  organization           Organization             @relation("ServiceCarrier", fields: [organizationId], references: [id], onDelete: Restrict)
+  customerOrganization   Organization             @relation("ServiceCustomer", fields: [customerOrganizationId], references: [id], onDelete: Restrict)
+  customer               Customer                 @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  order                  Order                    @relation(fields: [orderId], references: [id], onDelete: Restrict)
   assignments            Assignment[]
   events                 ServiceEvent[]
   trackingSessions       TrackingSession[]
-  currentPosition        CurrentPosition?  @relation("ServiceCurrentPosition")
-  locationHistory        LocationHistory[] @relation("ServiceLocationHistory")
+  currentPosition        CurrentPosition?         @relation("ServiceCurrentPosition")
+  locationHistory        LocationHistory[]        @relation("ServiceLocationHistory")
   etaEstimate            EtaEstimate?
   operationalState       ServiceOperationalState?
   geofences              ServiceGeofence[]
   geofenceEvents         GeofenceEvent[]
   incidents              OperationalIncident[]
   notifications          InternalNotification[]
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
+  documents              Document[]
+  proofOfDelivery        ProofOfDelivery?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
 
   @@index([organizationId, status])
   @@index([customerOrganizationId, createdAt])
 }
 
 model Driver {
-  id               String            @id
-  organizationId   String
-  userId           String?           @unique
-  name             String
-  phone            String
-  license          String
-  status           DriverStatus      @default(ACTIVE)
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  assignments      Assignment[]
-  trackingSessions TrackingSession[]
-  currentPositions CurrentPosition[]
-  locationHistory  LocationHistory[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                String            @id
+  organizationId    String
+  userId            String?           @unique
+  name              String
+  phone             String
+  license           String
+  status            DriverStatus      @default(ACTIVE)
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user              User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  assignments       Assignment[]
+  trackingSessions  TrackingSession[]
+  currentPositions  CurrentPosition[]
+  locationHistory   LocationHistory[]
+  proofOfDeliveries ProofOfDelivery[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([organizationId, status])
+}
+
+model Document {
+  id               String                      @id @default(cuid())
+  organizationId   String
+  serviceId        String
+  podId            String?
+  type             DocumentType
+  visibility       DocumentVisibility          @default(SHARED)
+  originalName     String
+  mimeType         String
+  sizeBytes        Int
+  storageKey       String                      @unique
+  sha256           String
+  status           DocumentStatus              @default(UPLOADED)
+  uploadedByUserId String
+  uploadedAt       DateTime                    @default(now())
+  organization     Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service          Service                     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  pod              ProofOfDelivery?            @relation(fields: [podId], references: [id], onDelete: SetNull)
+  uploadedBy       User                        @relation("DocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  history          DocumentValidationHistory[]
+
+  @@unique([serviceId, sha256])
+  @@index([organizationId, serviceId, uploadedAt])
+  @@index([podId])
+}
+
+model DocumentValidationHistory {
+  id              String          @id @default(cuid())
+  organizationId  String
+  documentId      String
+  changedByUserId String
+  fromStatus      DocumentStatus?
+  toStatus        DocumentStatus
+  reason          String?
+  changedAt       DateTime        @default(now())
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document        Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  changedBy       User            @relation("DocumentValidator", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, documentId, changedAt])
+}
+
+model ProofOfDelivery {
+  id                String                 @id @default(cuid())
+  organizationId    String
+  serviceId         String                 @unique
+  driverId          String
+  submittedByUserId String
+  deliveredAt       DateTime
+  serverSubmittedAt DateTime               @default(now())
+  receiverName      String?
+  observations      String?
+  status            PodStatus              @default(SUBMITTED)
+  verificationCode  String                 @unique
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service           Service                @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  driver            Driver                 @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  submittedBy       User                   @relation("PodSubmitter", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  documents         Document[]
+  history           PodValidationHistory[]
+
+  @@index([organizationId, status, serverSubmittedAt])
+  @@index([driverId, serverSubmittedAt])
+}
+
+model PodValidationHistory {
+  id              String          @id @default(cuid())
+  organizationId  String
+  podId           String
+  changedByUserId String
+  fromStatus      PodStatus?
+  toStatus        PodStatus
+  reason          String?
+  changedAt       DateTime        @default(now())
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  pod             ProofOfDelivery @relation(fields: [podId], references: [id], onDelete: Cascade)
+  changedBy       User            @relation("PodValidator", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, podId, changedAt])
 }
 
 model Vehicle {
@@ -413,101 +543,101 @@ model LocationHistory {
 }
 
 model EtaEstimate {
-  id              String       @id @default(cuid())
-  organizationId  String
-  serviceId       String       @unique
-  status          EtaStatus
-  estimatedArrival DateTime?
-  durationSeconds Int?
-  distanceMeters  Int?
-  calculatedAt    DateTime
-  source          String
+  id                String       @id @default(cuid())
+  organizationId    String
+  serviceId         String       @unique
+  status            EtaStatus
+  estimatedArrival  DateTime?
+  durationSeconds   Int?
+  distanceMeters    Int?
+  calculatedAt      DateTime
+  source            String
   unavailableReason String?
-  originLat       Decimal?     @db.Decimal(9, 6)
-  originLng       Decimal?     @db.Decimal(9, 6)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  service         Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  originLat         Decimal?     @db.Decimal(9, 6)
+  originLng         Decimal?     @db.Decimal(9, 6)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service           Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, status, calculatedAt])
 }
 
 model ServiceOperationalState {
-  id              String       @id @default(cuid())
-  organizationId  String
-  serviceId       String       @unique
-  delayLevel      DelayLevel   @default(DATA_INSUFFICIENT)
-  delayMinutes    Int?
-  gpsStale        Boolean      @default(false)
-  noProgress      Boolean      @default(false)
-  reasons         Json
-  assessedAt      DateTime
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  service         Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  id             String       @id @default(cuid())
+  organizationId String
+  serviceId      String       @unique
+  delayLevel     DelayLevel   @default(DATA_INSUFFICIENT)
+  delayMinutes   Int?
+  gpsStale       Boolean      @default(false)
+  noProgress     Boolean      @default(false)
+  reasons        Json
+  assessedAt     DateTime
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service        Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, delayLevel, gpsStale])
 }
 
 model ServiceGeofence {
-  id              String        @id @default(cuid())
-  organizationId  String
-  serviceId       String
-  kind            GeofenceKind
-  latitude        Decimal       @db.Decimal(9, 6)
-  longitude       Decimal       @db.Decimal(9, 6)
-  radiusMeters    Int           @default(250)
-  isInside        Boolean       @default(false)
+  id               String          @id @default(cuid())
+  organizationId   String
+  serviceId        String
+  kind             GeofenceKind
+  latitude         Decimal         @db.Decimal(9, 6)
+  longitude        Decimal         @db.Decimal(9, 6)
+  radiusMeters     Int             @default(250)
+  isInside         Boolean         @default(false)
   lastTransitionAt DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  service         Service       @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  events          GeofenceEvent[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  organization     Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service          Service         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  events           GeofenceEvent[]
 
   @@unique([serviceId, kind])
   @@index([organizationId, kind])
 }
 
 model GeofenceEvent {
-  id              String             @id @default(cuid())
-  organizationId  String
-  serviceId       String
-  geofenceId      String
-  kind            GeofenceEventKind
-  latitude        Decimal            @db.Decimal(9, 6)
-  longitude       Decimal            @db.Decimal(9, 6)
-  accuracy        Decimal            @db.Decimal(7, 2)
-  distanceMeters  Int
-  recordedAt      DateTime
-  createdAt       DateTime           @default(now())
-  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  service         Service            @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  geofence        ServiceGeofence    @relation(fields: [geofenceId], references: [id], onDelete: Restrict)
+  id             String            @id @default(cuid())
+  organizationId String
+  serviceId      String
+  geofenceId     String
+  kind           GeofenceEventKind
+  latitude       Decimal           @db.Decimal(9, 6)
+  longitude      Decimal           @db.Decimal(9, 6)
+  accuracy       Decimal           @db.Decimal(7, 2)
+  distanceMeters Int
+  recordedAt     DateTime
+  createdAt      DateTime          @default(now())
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service        Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  geofence       ServiceGeofence   @relation(fields: [geofenceId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, serviceId, recordedAt])
   @@index([geofenceId, recordedAt])
 }
 
 model OperationalIncident {
-  id              String             @id @default(cuid())
-  organizationId  String
-  serviceId       String
-  type            IncidentType
-  description     String
-  status          IncidentStatus     @default(OPEN)
-  priority        IncidentPriority   @default(MEDIUM)
+  id               String            @id @default(cuid())
+  organizationId   String
+  serviceId        String
+  type             IncidentType
+  description      String
+  status           IncidentStatus    @default(OPEN)
+  priority         IncidentPriority  @default(MEDIUM)
   reportedByUserId String
-  reportedAt      DateTime           @default(now())
-  resolvedAt      DateTime?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  service         Service            @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  reportedBy      User               @relation("IncidentReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
-  history         IncidentHistory[]
+  reportedAt       DateTime          @default(now())
+  resolvedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service          Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  reportedBy       User              @relation("IncidentReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+  history          IncidentHistory[]
 
   @@index([organizationId, status, priority])
   @@index([serviceId, reportedAt])
@@ -530,17 +660,17 @@ model IncidentHistory {
 }
 
 model InternalNotification {
-  id              String           @id @default(cuid())
-  organizationId  String
-  serviceId       String?
-  type            NotificationType
-  title           String
-  message         String
-  dedupeKey       String
-  readAt          DateTime?
-  createdAt       DateTime         @default(now())
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  service         Service?         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  id             String           @id @default(cuid())
+  organizationId String
+  serviceId      String?
+  type           NotificationType
+  title          String
+  message        String
+  dedupeKey      String
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  service        Service?         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
   @@unique([organizationId, dedupeKey])
   @@index([organizationId, readAt, createdAt])

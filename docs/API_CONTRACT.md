@@ -48,6 +48,21 @@
 | `GET /api/v1/operations/exceptions` | Transportista con `operations:read` | Resumen priorizable de servicios que requieren atención. |
 | `GET /api/v1/notifications` | Transportista con `notifications:read` | Notificaciones internas del tenant. |
 | `PATCH /api/v1/notifications/:id/read` | Transportista con `notifications:read` | Marca una notificación propia como leída. |
+| `GET /api/v1/documents` | Usuario con `documents:read` | Lista documentos visibles de los servicios autorizados. |
+| `GET /api/v1/services/:id/documents` | Participante autorizado | Lista documentos; cliente solo recibe compartidos y aprobados. |
+| `POST /api/v1/services/:id/documents` | Transportista con `documents:write` | Sube un PDF o imagen por multipart con tipo y visibilidad. |
+| `POST /api/v1/services/:id/documents/generate` | Transportista con `documents:write` | Genera un albarán o justificante POD PDF operativo, con hash y permisos. |
+| `GET /api/v1/services/:serviceId/documents/:documentId` | Participante autorizado | Devuelve metadatos e historial sin revelar la ruta privada. |
+| `GET /api/v1/services/:serviceId/documents/:documentId/history` | Participante autorizado | Devuelve el historial autorizado del documento. |
+| `GET /api/v1/services/:serviceId/documents/:documentId/download` | Participante autorizado | Descarga autenticada con `private, no-store`. |
+| `PATCH /api/v1/services/:serviceId/documents/:documentId/status` | Transportista con `documents:validate` | Marca en revisión, aprueba o rechaza; rechazo exige motivo. |
+| `GET /api/v1/services/:id/pod` | Participante con `pod:read` | POD autorizado; el cliente solo recibe el aprobado. |
+| `GET /api/v1/services/:id/pod/history` | Participante con `pod:read` | Historial del POD autorizado. |
+| `PATCH /api/v1/services/:id/pod/status` | Transportista con `pod:validate` | Revisa, aprueba o rechaza el POD con historial. |
+| `GET /api/v1/driver/services/:id/documents` | Conductor asignado | Lista documentos compartidos del servicio propio. |
+| `POST /api/v1/driver/services/:id/documents` | Conductor asignado | Adjunta un documento del servicio para revisión. |
+| `GET /api/v1/driver/services/:id/pod` | Conductor asignado | Consulta su POD y resultado de validación. |
+| `POST /api/v1/driver/services/:id/pod` | Conductor asignado | Envía entrega, observaciones y 1–4 evidencias por multipart. |
 
 ## Autenticación
 
@@ -126,6 +141,14 @@ Una posición GPS nueva puede actualizar geofences, ETA y estado operativo. Las 
 
 Las geofences usan precisión máxima e histéresis. `GEOFENCE_ENTERED` acredita llegada GPS, pero no completa entrega ni POD. Las alertas y notificaciones tienen claves de deduplicación por evento o ventana temporal.
 
+## Documents & POD v0.6
+
+Las subidas usan `multipart/form-data`. Los tipos iniciales son `DELIVERY_NOTE`, `CMR`, `POD`, `DELIVERY_PHOTO` y `SERVICE_ATTACHMENT`; la visibilidad es `SHARED` o `INTERNAL`. Se aceptan PDF, JPEG, PNG y HEIC/HEIF hasta `DOCUMENT_MAX_BYTES`. El servidor contrasta la firma inicial del archivo con el MIME declarado, calcula SHA-256 e impide duplicados por servicio.
+
+El transportista puede generar un `DELIVERY_NOTE` o `POD` operativo mediante `POST /api/v1/services/:id/documents/generate` con `{ "type": "DELIVERY_NOTE" | "POD" }`. El resultado se almacena como PDF privado con hash y no equivale por sí solo a una firma electrónica cualificada.
+
+Los estados documentales son `UPLOADED`, `IN_REVIEW`, `APPROVED` y `REJECTED`. El POD usa `PENDING`, `SUBMITTED`, `IN_REVIEW`, `APPROVED` y `REJECTED`. Rechazar exige un motivo. Cada cambio conserva actor y hora en un historial y genera auditoría/evento de servicio.
+
 ## Fuera de esta versión
 
-GES, DECA legal, documentos, POD, facturación, mensajería externa y automatizaciones durables no tienen todavía endpoints productivos. Los endpoints legacy de la raíz no pertenecen a `/api/v1`.
+GES, DECA legal completo, firma, facturación, mensajería externa y automatizaciones durables no tienen todavía endpoints productivos. Los endpoints legacy de la raíz no pertenecen a `/api/v1`.

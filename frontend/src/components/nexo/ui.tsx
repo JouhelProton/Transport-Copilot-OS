@@ -6,14 +6,14 @@ import { cn } from "@/lib/utils";
 
 export function Logo({ light = false, to = "/" }: { light?: boolean; to?: string }) {
   return (
-    <Link to={to} className="flex items-center gap-2.5" aria-label="Transport Copilot OS — inicio">
+    <Link to={to} className="flex items-center gap-2.5" aria-label="NEXO Copilot — inicio">
       <span
         className={cn(
           "grid h-9 w-9 place-items-center rounded-lg font-display text-lg font-bold",
           light ? "bg-primary text-primary-foreground" : "bg-ink text-ink-foreground",
         )}
       >
-        TC
+        NX
       </span>
       <span className="leading-tight">
         <span
@@ -22,10 +22,10 @@ export function Logo({ light = false, to = "/" }: { light?: boolean; to?: string
             light ? "text-ink-foreground" : "text-foreground",
           )}
         >
-          Transport Copilot
+          NEXO Copilot
         </span>
         <span className={cn("block text-xs", light ? "text-ink-muted" : "text-muted-foreground")}>
-          OS
+          Transport Copilot OS
         </span>
       </span>
     </Link>

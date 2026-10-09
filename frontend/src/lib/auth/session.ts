@@ -13,7 +13,15 @@ export type Permission =
   | "drivers:read"
   | "vehicles:read"
   | "driver:services:read"
-  | "driver:services:accept";
+  | "driver:services:accept"
+  | "documents:read"
+  | "documents:write"
+  | "documents:validate"
+  | "pod:read"
+  | "pod:validate"
+  | "driver:documents:read"
+  | "driver:documents:write"
+  | "driver:pod:submit";
 
 export interface SessionMembership {
   id: string;

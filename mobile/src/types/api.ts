@@ -110,3 +110,32 @@ export interface DriverIncident {
   priority: IncidentPriority;
   reportedAt: string;
 }
+
+export type DocumentStatus = "UPLOADED" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+export type PodStatus = "PENDING" | "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+
+export interface DriverDocument {
+  id: string;
+  serviceId: string;
+  podId: string | null;
+  type: "DELIVERY_NOTE" | "CMR" | "POD" | "DELIVERY_PHOTO" | "SERVICE_ATTACHMENT";
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  status: DocumentStatus;
+  uploadedAt: string;
+}
+
+export interface DriverPod {
+  id: string;
+  serviceId: string;
+  deliveredAt: string;
+  serverSubmittedAt: string;
+  receiverName: string | null;
+  observations: string | null;
+  status: PodStatus;
+  verificationCode: string;
+  documents: DriverDocument[];
+  history: Array<{ id: string; fromStatus: PodStatus | null; toStatus: PodStatus; reason: string | null; changedAt: string }>;
+}

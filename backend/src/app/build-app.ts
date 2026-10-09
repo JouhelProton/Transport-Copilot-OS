@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import { Prisma } from "../generated/prisma/client.js";
 import { ZodError } from "zod";
 import type { AppConfig } from "../config/env.js";
@@ -12,6 +13,7 @@ import { registerAuthRoutes } from "../modules/auth/routes.js";
 import { registerDriverRoutes } from "../modules/driver/routes.js";
 import { registerTrackingRoutes } from "../modules/tracking/routes.js";
 import { registerOperationsRoutes } from "../modules/operations/routes.js";
+import { registerDocumentRoutes } from "../modules/documents/routes.js";
 import { forbidden } from "../shared/errors.js";
 
 export async function buildApp(config: AppConfig, providedDatabase?: Database) {
@@ -36,7 +38,7 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
               "*.password",
             ],
           },
-    bodyLimit: 256 * 1024,
+    bodyLimit: Math.max(256 * 1024, config.DOCUMENT_MAX_BYTES + 512 * 1024),
     requestIdHeader: "x-request-id",
   });
 
@@ -46,6 +48,14 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
     credentials: true,
     methods: ["GET", "POST", "PATCH", "OPTIONS"],
     allowedHeaders: ["content-type", "x-request-id", "authorization"],
+  });
+  await app.register(multipart, {
+    limits: {
+      fileSize: config.DOCUMENT_MAX_BYTES,
+      files: 5,
+      fields: 12,
+      parts: 17,
+    },
   });
 
   app.addHook("onRequest", async (request) => {
@@ -70,7 +80,7 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
   app.get("/ready", async (request, reply) => {
     try {
       await database.$queryRaw`SELECT 1`;
-      return { status: "ok", service: "transport-copilot-backend", database: "ready" };
+      return { status: "ok", service: "transport-copilot-backend", database: "ready", features: { documentsPod: true } };
     } catch (error) {
       request.log.error({ err: error }, "Database readiness check failed");
       return reply.code(503).send({
@@ -204,6 +214,7 @@ export async function buildApp(config: AppConfig, providedDatabase?: Database) {
       await registerDriverRoutes(api, database, config);
       await registerTrackingRoutes(api, database, config);
       await registerOperationsRoutes(api, database, config);
+      await registerDocumentRoutes(api, database, config);
     },
     { prefix: "/api/v1" },
   );

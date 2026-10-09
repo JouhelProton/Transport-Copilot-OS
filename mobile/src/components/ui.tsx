@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactNode } from "react";
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View, type PressableProps } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressableProps } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/theme/colors";
 import type { ServiceStatus } from "@/types/api";
 
@@ -8,7 +9,7 @@ export function Screen({ children }: PropsWithChildren) {
 }
 
 export function Brand() {
-  return <View style={styles.brand}><View style={styles.brandMark}><Text style={styles.brandMarkText}>TC</Text></View><View><Text style={styles.brandName}>Transport Copilot</Text><Text style={styles.brandRole}>DRIVER</Text></View></View>;
+  return <View style={styles.brand}><View style={styles.brandMark}><Text style={styles.brandMarkText}>NX</Text></View><View><Text style={styles.brandName}>NEXO Driver</Text><Text style={styles.brandRole}>TRANSPORT COPILOT OS</Text></View></View>;
 }
 
 export function PrimaryButton({ title, busy, ...props }: PressableProps & { title: string; busy?: boolean }) {

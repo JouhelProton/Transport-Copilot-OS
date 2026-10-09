@@ -1,4 +1,4 @@
-# NEXO — Transport Copilot OS
+# NEXO Copilot — Transport Copilot OS
 
 ## Alcance del documento
 
@@ -6,7 +6,9 @@ Este roadmap describe la planificación de producto y negocio. No significa que 
 
 ## Decisiones de producto
 
-- Marca: **NEXO — Transport Copilot OS**.
+- Empresa desarrolladora: **NEXO Technologies**. Este nombre identifica al equipo desarrollador y no constituye una afirmación societaria, fiscal o registral.
+- Plataforma: **NEXO Copilot**.
+- Descripción del producto: **Transport Copilot OS**.
 - Web comercial prevista: `nexocopilot.es`.
 - Portal operativo previsto: `portal.nexocopilot.es`.
 - Aplicación de conductor: NEXO Driver con Expo.
@@ -44,7 +46,11 @@ Corrección técnica de compatibilidad con sensores iOS, entrega idempotente, co
 
 ### v0.6 — Documents & POD
 
-Documentos privados, DECA tras validación legal, cámara/firma, POD y validación.
+Documentos privados en almacenamiento local sustituible, metadatos y hashes en PostgreSQL, cámara/galería en NEXO Driver, POD verificable, validación operativa, permisos de transportista/conductor/cliente y marcador de camión en Google Maps. DECA completo y firma quedan fuera de esta versión.
+
+### v0.6.5 — Background GPS Tracking
+
+Development Build, permisos y tarea nativa explícita para seguimiento en segundo plano, según `docs/BACKGROUND_TRACKING_PLAN.md`. iOS decide la frecuencia efectiva y puede detener la aplicación tras un cierre forzado.
 
 ### v0.7 — Automation Core
 

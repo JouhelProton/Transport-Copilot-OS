@@ -17,12 +17,20 @@ interface GoogleBounds {
 }
 interface GoogleOverlay {
   setMap(map: null): void;
+  addListener?(event: string, callback: () => void): void;
+}
+interface GoogleInfoWindow {
+  open(options: { anchor: GoogleOverlay; map: GoogleMapInstance }): void;
+  close(): void;
 }
 interface GoogleMapsNamespace {
   Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance;
   Marker: new (options: Record<string, unknown>) => GoogleOverlay;
   Polyline: new (options: Record<string, unknown>) => GoogleOverlay;
   LatLngBounds: new () => GoogleBounds;
+  InfoWindow: new (options: { content: string }) => GoogleInfoWindow;
+  Point: new (x: number, y: number) => unknown;
+  Size: new (width: number, height: number) => unknown;
 }
 
 declare global {

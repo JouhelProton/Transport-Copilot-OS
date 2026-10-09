@@ -20,12 +20,12 @@ export async function apiFetch(path: string, init?: RequestInit, authenticated =
   const requestInit = authenticated
     ? await authTransport.authenticatedInit(init)
     : authTransport.unauthenticatedInit(init);
+  const headers = new Headers(requestInit?.headers);
+  if (requestInit?.body && !(requestInit.body instanceof FormData) && !headers.has("content-type"))
+    headers.set("content-type", "application/json");
   const response = await fetch(`${platform.apiBaseUrl()}/api/v1${path}`, {
     ...requestInit,
-    headers: {
-      ...(requestInit?.body ? { "content-type": "application/json" } : {}),
-      ...requestInit?.headers,
-    },
+    headers,
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ErrorBody;

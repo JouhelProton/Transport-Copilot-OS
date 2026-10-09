@@ -20,7 +20,7 @@ El webhook GES de demo usa secreto compartido y recibe un evento normalizado de 
 4. Gestor de secretos, rotación y privilegio mínimo; secretos nunca en frontend, logs, URLs ni commits.
 5. HTTPS extremo a extremo, cabeceras de seguridad y un rate limiter compartido para despliegues con varias réplicas.
 6. Webhooks autenticados con firma, timestamp, protección replay, idempotencia y esquema validado.
-7. Documentos privados con permisos, URLs temporales, límites/checksum, antivirus y política de retención.
+7. Completar documentos privados con antivirus, política de retención y almacenamiento externo con URLs temporales cuando se migre del adaptador local.
 8. Ubicación/contactos con finalidad, consentimiento/base aplicable, acceso mínimo, retención/borrado y auditoría.
 9. Auditoría durable, copias cifradas, restauración probada, monitorización y respuesta a incidentes.
 10. Validar requisitos legales aplicables a DECA, documentos y facturación con asesoría competente.
@@ -36,7 +36,15 @@ El webhook GES de demo usa secreto compartido y recibe un evento normalizado de 
 
 ## Multi-tenancy pendiente para producción
 
-Ampliar las mismas reglas a documentos, tracking, facturación, notificaciones y procesos en background. Añadir restricciones/RLS en DB como segunda barrera. Los tokens futuros de tracking de cliente deberán ser aleatorios, solo lectura, por servicio y revocables.
+Ampliar las mismas reglas a facturación y procesos en background. Documentos, POD, tracking y notificaciones ya filtran por tenant y relación en la API; añadir restricciones/RLS en DB como segunda barrera. Los tokens futuros de tracking de cliente deberán ser aleatorios, solo lectura, por servicio y revocables.
+
+## Documents & POD v0.6
+
+Los archivos se almacenan en un directorio privado que Fastify no publica. El cliente recibe IDs y una ruta de descarga autenticada, nunca `storageKey` ni una ruta física. Las claves son UUID, se validan con una lista cerrada antes de resolverlas y la escritura usa creación exclusiva para impedir sobreescrituras. Se validan tamaño, MIME declarado y firma inicial de PDF/JPEG/PNG/HEIC; SHA-256 aporta control de integridad y deduplicación por servicio.
+
+El transportista solo opera sobre su `organizationId`, el conductor requiere `Assignment ACTIVE` y el cliente requiere la relación `customerOrganizationId + customerId`. Para cliente, la lectura añade `SHARED + APPROVED` y el POD exige `APPROVED`. Los cambios de estado generan historial, `ServiceEvent` y `AuditLog`. El código de verificación no tiene ruta pública y no se presenta como firma electrónica cualificada.
+
+Pendiente antes de producción: antivirus/sandbox de archivos, retención y borrado, cifrado gestionado, S3-compatible privado, URLs temporales, límites por organización, revisión de datos personales y pruebas de recuperación.
 
 ## Cliente móvil Expo implementado
 

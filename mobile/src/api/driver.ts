@@ -10,6 +10,8 @@ import type {
   DriverIncident,
   IncidentPriority,
   IncidentType,
+  DriverPod,
+  DriverDocument,
 } from "@/types/api";
 
 export function createDriverApi(client: ApiClient = apiClient) {
@@ -92,6 +94,43 @@ export function createDriverApi(client: ApiClient = apiClient) {
       const response = await client.request<ApiEnvelope<DriverIncident>>(
         `/driver/services/${encodeURIComponent(id)}/incidents`,
         { method: "POST", token, body: JSON.stringify(input) },
+      );
+      return response.data;
+    },
+    async pod(token: string, id: string) {
+      const response = await client.request<ApiEnvelope<DriverPod | null>>(
+        `/driver/services/${encodeURIComponent(id)}/pod`,
+        { token },
+      );
+      return response.data;
+    },
+    async documents(token: string, id: string) {
+      const response = await client.request<ApiEnvelope<DriverDocument[]>>(
+        `/driver/services/${encodeURIComponent(id)}/documents`,
+        { token },
+      );
+      return response.data;
+    },
+    async uploadDocument(token: string, id: string, input: { type: DriverDocument["type"]; file: { uri: string; name: string; type: string } }) {
+      const form = new FormData();
+      form.append("type", input.type);
+      form.append("file", input.file as unknown as Blob);
+      const response = await client.request<ApiEnvelope<DriverDocument>>(
+        `/driver/services/${encodeURIComponent(id)}/documents`,
+        { method: "POST", token, body: form },
+      );
+      return response.data;
+    },
+    async submitPod(token: string, id: string, input: { deliveredAt: string; receiverName?: string; observations?: string; files: Array<{ uri: string; name: string; type: string }> }) {
+      const form = new FormData();
+      form.append("deliveredAt", input.deliveredAt);
+      if (input.receiverName) form.append("receiverName", input.receiverName);
+      if (input.observations) form.append("observations", input.observations);
+      for (const file of input.files)
+        form.append("file", file as unknown as Blob);
+      const response = await client.request<ApiEnvelope<DriverPod>>(
+        `/driver/services/${encodeURIComponent(id)}/pod`,
+        { method: "POST", token, body: form },
       );
       return response.data;
     },

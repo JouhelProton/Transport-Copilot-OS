@@ -47,7 +47,15 @@ Corrige los centinelas negativos de sensores iOS, la clasificación de errores y
 
 ## v0.6 — Documents & POD
 
-Almacenamiento privado, cámara/firma, POD y validación.
+**STATUS: IMPLEMENTADO TÉCNICAMENTE — VALIDACIÓN FÍSICA POD PENDIENTE**
+
+Almacenamiento privado local sustituible, metadatos y SHA-256 en PostgreSQL, permisos por servicio, cámara/galería en NEXO Driver, POD, revisión operativa, historial y acceso limitado del cliente. La firma y DECA completo siguen pendientes.
+
+## v0.6.5 — Background GPS Tracking
+
+**STATUS: PLANIFICADO**
+
+Development Build y tarea nativa de ubicación en segundo plano con inicio/parada explícitos, cola offline y avisos de privacidad. La planificación está en `BACKGROUND_TRACKING_PLAN.md`; v0.6 no implementa tracking oculto ni promete intervalos exactos.
 
 ## v0.7 — Automation Core
 
