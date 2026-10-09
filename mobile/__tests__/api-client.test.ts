@@ -37,4 +37,10 @@ describe("API client", () => {
       "No hemos podido completar la operación. Referencia: req-pod-2.",
     );
   });
+
+  test("preserves HTTP status when reading the response body fails", async () => {
+    const fetchMock = jest.fn(async () => ({ ok: true, status: 201, text: async () => { throw new Error("body unavailable"); } } as unknown as Response));
+    const client = createApiClient({ baseUrl: "https://api.example.test", fetchImplementation: fetchMock as typeof fetch });
+    await expect(client.request("/driver/services/svc/pod", { method: "POST" })).rejects.toMatchObject({ kind: "SERVER", status: 201, code: "RESPONSE_READ_FAILED" });
+  });
 });
