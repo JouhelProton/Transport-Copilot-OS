@@ -41,6 +41,6 @@ La implementación Capacitor en `/frontend` queda **DEPRECATED para Driver App**
 Expo Go es un cliente de desarrollo. v0.4 implementa GPS foreground con `expo-location`, pero no promete ejecución continua en segundo plano. La cámara/galería y el POD están implementados; la firma, push y tracking background siguen fuera. El siguiente paso nativo está definido en `BACKGROUND_TRACKING_PLAN.md` para v0.6.5.
 # Hotfix de transporte POD (v0.6)
 
-El envío de POD usa XMLHttpRequest nativo para el multipart con archivos locales `{ uri, name, type }`. El conversor de Expo fetch instalado no admite esas entradas; el fallo ocurría antes de emitir una petición HTTP. Se conserva HTTPS, Bearer y el contrato multipart existente. Las subidas documentales independientes mantienen su transporte existente.
+El envío de POD usa XMLHttpRequest nativo para el multipart con archivos locales `{ uri, name, type }`. El conversor de Expo fetch instalado no admite esas entradas; el fallo ocurría antes de emitir una petición HTTP. Se conserva HTTPS, Bearer y el contrato multipart existente. Todas las peticiones FormData usan automáticamente este transporte, incluidas las subidas documentales independientes. No requieren una opción por endpoint. El timeout de archivos es de 120 segundos; las demás peticiones mantienen 12 segundos.
 
 Validación física: el reintento del iPhone devolvió HTTP 201 (`req-v`); el usuario confirmó `SUBMITTED` y el operador pudo consultar la evidencia persistida. La lectura fallida de una respuesta HTTP se distingue de un error de transporte.

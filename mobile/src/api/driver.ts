@@ -130,7 +130,7 @@ export function createDriverApi(client: ApiClient = apiClient) {
         form.append("file", file as unknown as Blob);
       const response = await client.request<ApiEnvelope<DriverPod>>(
         `/driver/services/${encodeURIComponent(id)}/pod`,
-        { method: "POST", token, body: form, nativeMultipart: true },
+        { method: "POST", token, body: form },
       );
       return response.data;
     },

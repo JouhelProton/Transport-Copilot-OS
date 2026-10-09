@@ -14,12 +14,14 @@ export const multipartFetch: typeof fetch = (input, init = {}) => new Promise((r
   new Headers(init.headers).forEach((value, name) => xhr.setRequestHeader(name, value));
   xhr.onload = () => {
     cleanup();
+    try {
     const headers = new Headers();
     for (const line of xhr.getAllResponseHeaders().trim().split(/[\r\n]+/)) {
       const separator = line.indexOf(":");
       if (separator > 0) headers.append(line.slice(0, separator), line.slice(separator + 1).trim());
     }
     resolve(new Response(xhr.status === 204 ? null : xhr.responseText, { status: xhr.status, headers }));
+    } catch (error) { reject(error); }
   };
   xhr.onerror = () => { cleanup(); reject(new TypeError("Network request failed")); };
   xhr.onabort = () => { cleanup(); const error = new Error("Request aborted"); error.name = "AbortError"; reject(error); };

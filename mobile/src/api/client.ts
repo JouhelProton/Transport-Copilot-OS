@@ -28,11 +28,11 @@ interface ClientOptions {
   baseUrl?: string;
   fetchImplementation?: FetchImplementation;
   timeoutMs?: number;
+  uploadTimeoutMs?: number;
 }
 
 interface RequestOptions extends RequestInit {
   token?: string | null;
-  nativeMultipart?: boolean;
 }
 
 function normalizedBaseUrl(configured?: string) {
@@ -68,14 +68,14 @@ export function createApiClient(options: ClientOptions = {}) {
       );
       const startedAt = Date.now();
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      const { token, headers, nativeMultipart, ...init } = requestOptions;
+      const { token, headers, ...init } = requestOptions;
+      const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+      const timer = setTimeout(() => controller.abort(), isFormData ? options.uploadTimeoutMs ?? 120_000 : timeoutMs);
       let stage = "prepare";
       let responseStatus: number | undefined;
       try {
-        const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
         stage = "transport";
-        const send = nativeMultipart && !options.fetchImplementation ? multipartFetch : fetchImplementation;
+        const send = isFormData && !options.fetchImplementation ? multipartFetch : fetchImplementation;
         const response = await send(`${baseUrl}/api/v1${path}`, {
           ...init,
           signal: controller.signal,
@@ -125,7 +125,7 @@ export function createApiClient(options: ClientOptions = {}) {
         }
       } catch (error) {
         if (error instanceof ApiError) throw error;
-        if (error instanceof Error && error.name === "AbortError")
+        if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError"))
           throw new ApiError("El servidor ha tardado demasiado en responder.", "TIMEOUT");
         if (process.env.NODE_ENV !== "production") console.info("[NEXO API]", requestOptions.method ?? "GET", path, "FAILURE", stage, responseStatus ?? "NO_HTTP", error instanceof Error ? error.name : "UnknownError", error instanceof Error && /network request failed/i.test(error.message) ? "NATIVE_NETWORK_REQUEST_FAILED" : "OTHER_EXCEPTION", `${Date.now() - startedAt}ms`);
         if (stage !== "transport") throw new ApiError("No se pudo interpretar la respuesta del servidor.", "SERVER", responseStatus, "RESPONSE_READ_FAILED");
