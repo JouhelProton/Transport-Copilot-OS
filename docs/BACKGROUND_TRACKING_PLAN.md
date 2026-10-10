@@ -1,4 +1,6 @@
-# v0.6.5 — Plan de seguimiento GPS en segundo plano
+# v0.6.5 — Plan original de seguimiento GPS en segundo plano
+
+> La implementación técnica se documenta en `docs/V065_BACKGROUND_GPS.md`. Este archivo se conserva como registro del diseño previo.
 
 ## Alcance
 

@@ -4,6 +4,7 @@ import { friendlyApiMessage } from "@/api/client";
 import type { SessionPayload } from "@/types/api";
 import { AuthService } from "./service";
 import { authStorage } from "./storage";
+import { stopTrackingBeforeLogout } from "@/tracking/controller";
 
 type AuthStatus = "checking" | "authenticated" | "unauthenticated" | "unavailable";
 
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setStatus("authenticated");
       },
       async logout() {
+        await stopTrackingBeforeLogout(token);
         if (token) await service.logout(token);
         else await service.clear();
         setToken(null);
@@ -70,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setStatus("unauthenticated");
       },
       async expire() {
+        await stopTrackingBeforeLogout(token);
         await service.clear();
         setToken(null);
         setSession(null);

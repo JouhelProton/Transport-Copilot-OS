@@ -18,8 +18,11 @@ const initialTracking: TrackingStatus = {
   state: "OFF",
   apiBaseUrl: process.env.EXPO_PUBLIC_API_URL ?? "Sin configurar",
   trackingSessionId: null,
+  activeServiceId: null,
+  mode: null,
   lastAttemptAt: null,
   lastConfirmedAt: null,
+  lastCapturedAt: null,
   lastAccuracy: null,
   lastHttpStatus: null,
   pendingCount: 0,
@@ -77,12 +80,22 @@ export default function ServiceDetailScreen() {
   }, [auth, id, offline]);
 
   useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
-  useEffect(() => () => { void trackingRef.current?.dispose(); }, []);
+  useEffect(() => {
+    if (!auth.token || !id) return;
+    const controller = new TrackingController(auth.token, id);
+    trackingRef.current = controller;
+    const unsubscribe = controller.subscribe(setTracking);
+    return () => {
+      unsubscribe();
+      void controller.dispose();
+      if (trackingRef.current === controller) trackingRef.current = null;
+    };
+  }, [auth.token, id]);
 
   const toggleTracking = async () => {
     if (!auth.token || !id || offline || !item?.assignment) return;
-    if (["ACTIVE", "LOW_ACCURACY", "OFFLINE", "SYNC_PENDING"].includes(tracking.state)) { await trackingRef.current?.stop(); return; }
-    if (!trackingRef.current) { trackingRef.current = new TrackingController(auth.token, id); trackingRef.current.subscribe(setTracking); }
+    if (["ACTIVE", "LOW_ACCURACY", "OFFLINE", "SYNC_PENDING", "SERVER_UNAVAILABLE", "SAMPLE_REJECTED"].includes(tracking.state)) { await trackingRef.current?.stop(); return; }
+    if (!trackingRef.current) return;
     await trackingRef.current.start();
   };
 
@@ -133,6 +146,8 @@ export default function ServiceDetailScreen() {
         files: evidence.map((asset, index) => ({ uri: asset.uri, name: asset.fileName ?? `entrega-${Date.now()}-${index + 1}.jpg`, type: asset.mimeType ?? "image/jpeg" })),
       });
       setPod(result); setEvidence([]); setPodMessage("POD recibido por operaciones.");
+      if (["ACTIVE", "LOW_ACCURACY", "OFFLINE", "SYNC_PENDING", "SERVER_UNAVAILABLE", "SAMPLE_REJECTED"].includes(tracking.state))
+        void trackingRef.current?.stop();
     } catch (reason) {
       if (reason instanceof ApiError && reason.kind === "UNAUTHORIZED") { await auth.expire(); return; }
       setPodMessage(reason instanceof ApiError && reason.code === "FILE_TOO_LARGE" ? "La imagen supera el tamaño permitido. Selecciona una más pequeña." : friendlyApiMessage(reason));
@@ -144,10 +159,10 @@ export default function ServiceDetailScreen() {
   if (!item) return <StateScreen eyebrow="Servicio" title="Servicio no disponible" message={error ?? "No hemos podido cargarlo."} actionLabel="Volver" onAction={() => router.back()} />;
   const accepted = item.status === "DRIVER_ACCEPTED";
   const temperature = item.tempMin === null ? "No requerida" : `${item.tempMin}–${item.tempMax ?? item.tempMin} °C`;
-  const trackingActive = ["ACTIVE", "LOW_ACCURACY", "OFFLINE", "SYNC_PENDING", "SERVER_UNAVAILABLE", "SAMPLE_REJECTED"].includes(tracking.state);
+  const trackingActive = ["ACTIVE", "LOW_ACCURACY", "OFFLINE", "SYNC_PENDING", "SERVER_UNAVAILABLE", "SAMPLE_REJECTED", "STOPPING"].includes(tracking.state);
   const trackingSynchronized = tracking.state === "ACTIVE" && tracking.lastConfirmedAt !== null && tracking.pendingCount === 0;
   const trackingTitle = trackingSynchronized ? "GPS activo y sincronizado" : trackingActive ? "GPS activo con sincronización pendiente" : tracking.state === "STOPPED" ? "Seguimiento detenido" : "Seguimiento desactivado";
-  const trackingLabel = tracking.state === "REQUESTING_PERMISSION" ? "Solicitando permiso…" : tracking.state === "LOCATING" ? "Buscando ubicación…" : trackingActive ? "Detener seguimiento" : "Iniciar seguimiento GPS";
+  const trackingLabel = tracking.state === "REQUESTING_PERMISSION" ? "Solicitando permiso…" : tracking.state === "LOCATING" ? "Buscando ubicación…" : tracking.state === "STOPPING" ? "Deteniendo…" : trackingActive ? "Detener seguimiento" : "Iniciar seguimiento GPS";
   const podCanSubmit = !pod || pod.status === "REJECTED";
 
   return <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>{offline ? <OfflineBanner /> : null}<ScrollView contentContainerStyle={styles.content}>
@@ -157,12 +172,12 @@ export default function ServiceDetailScreen() {
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {accepted ? <View accessibilityRole="alert" style={styles.confirmed}><Text style={styles.confirmedIcon}>✓</Text><Text style={styles.confirmedTitle}>{acceptedNow ? "Servicio aceptado" : "Servicio ya aceptado"}</Text><Text style={styles.confirmedText}>Operaciones tiene la confirmación.</Text></View> : <PrimaryButton title={accepting ? "Confirmando…" : "Aceptar servicio"} busy={accepting} disabled={offline} onPress={() => void accept()} />}
 
-    <View style={styles.trackingCard}><View style={styles.trackingHeader}><View style={styles.grow}><Text style={styles.trackingEyebrow}>SEGUIMIENTO GPS</Text><Text style={styles.trackingTitle}>{trackingTitle}</Text></View><View style={[styles.trackingDot, trackingSynchronized && styles.trackingDotActive]} /></View><Text style={styles.trackingText}>{tracking.message ?? "El conductor decide cuándo compartir su ubicación."}</Text><View style={styles.diagnostics}><Text style={styles.diagnostic}>API: {tracking.apiBaseUrl}</Text><Text style={styles.diagnostic}>Estado: {tracking.state}</Text><Text style={styles.diagnostic}>Sesión GPS: {tracking.trackingSessionId ?? "Sin iniciar"}</Text><Text style={styles.diagnostic}>Último intento: {tracking.lastAttemptAt ? formatDateTime(tracking.lastAttemptAt) : "—"}</Text><Text style={styles.diagnostic}>Última confirmación: {tracking.lastConfirmedAt ? formatDateTime(tracking.lastConfirmedAt) : "—"}</Text><Text style={styles.diagnostic}>HTTP: {tracking.lastHttpStatus ?? "—"}</Text></View>{tracking.lastAccuracy !== null ? <Text style={styles.trackingMeta}>Precisión aproximada: {Math.round(tracking.lastAccuracy)} m</Text> : null}{tracking.pendingCount > 0 ? <Text style={styles.trackingPending}>Pendientes de sincronizar: {tracking.pendingCount}</Text> : null}{tracking.rejectedCount > 0 ? <Text style={styles.trackingRejected}>Muestras rechazadas conservadas: {tracking.rejectedCount}</Text> : null}<PrimaryButton title={trackingLabel} busy={tracking.state === "REQUESTING_PERMISSION" || tracking.state === "LOCATING"} disabled={offline || !item.assignment || ["AUTH_ERROR", "AUTHORIZATION_ERROR", "SESSION_EXPIRED", "ERROR"].includes(tracking.state)} onPress={() => void toggleTracking()} /></View>
+    <View style={styles.trackingCard}><View style={styles.trackingHeader}><View style={styles.grow}><Text style={styles.trackingEyebrow}>SEGUIMIENTO GPS</Text><Text style={styles.trackingTitle}>{trackingTitle}</Text></View><View style={[styles.trackingDot, trackingSynchronized && styles.trackingDotActive]} /></View><Text style={styles.trackingText}>{tracking.message ?? "El conductor decide cuándo compartir su ubicación."}</Text><View style={styles.diagnostics}><Text style={styles.diagnostic}>Modo: {tracking.mode === "BACKGROUND" ? "Segundo plano" : tracking.mode === "FOREGROUND_EXPO_GO" ? "Expo Go · primer plano" : "Sin iniciar"}</Text><Text style={styles.diagnostic}>Estado: {tracking.state}</Text><Text style={styles.diagnostic}>Servicio activo: {tracking.activeServiceId ?? "—"}</Text><Text style={styles.diagnostic}>Sesión GPS: {tracking.trackingSessionId ?? "Sin iniciar"}</Text><Text style={styles.diagnostic}>Última captura: {tracking.lastCapturedAt ? formatDateTime(tracking.lastCapturedAt) : "—"}</Text><Text style={styles.diagnostic}>Última sincronización: {tracking.lastConfirmedAt ? formatDateTime(tracking.lastConfirmedAt) : "—"}</Text><Text style={styles.diagnostic}>HTTP: {tracking.lastHttpStatus ?? "—"}</Text></View>{tracking.lastAccuracy !== null ? <Text style={styles.trackingMeta}>Precisión aproximada: {Math.round(tracking.lastAccuracy)} m</Text> : null}{tracking.pendingCount > 0 ? <Text style={styles.trackingPending}>Pendientes de sincronizar: {tracking.pendingCount}</Text> : null}{tracking.rejectedCount > 0 ? <Text style={styles.trackingRejected}>Muestras rechazadas conservadas: {tracking.rejectedCount}</Text> : null}<PrimaryButton title={trackingLabel} busy={tracking.state === "REQUESTING_PERMISSION" || tracking.state === "LOCATING" || tracking.state === "STOPPING"} disabled={offline || !item.assignment || ["AUTH_ERROR", "AUTHORIZATION_ERROR", "SESSION_EXPIRED", "ERROR", "OTHER_SERVICE_ACTIVE"].includes(tracking.state)} onPress={() => void toggleTracking()} /></View>
 
     <View style={styles.podCard}><Text style={styles.trackingEyebrow}>PRUEBA DE ENTREGA</Text><Text style={styles.trackingTitle}>{pod ? `POD · ${pod.status}` : "Registrar entrega"}</Text>{pod ? <><Text style={styles.trackingText}>Enviado {formatDateTime(pod.serverSubmittedAt)} · {pod.documents.length} evidencia(s)</Text>{pod.history.at(-1)?.reason ? <Text style={styles.trackingRejected}>Motivo: {pod.history.at(-1)?.reason}</Text> : null}</> : <Text style={styles.trackingText}>Adjunta entre una y cuatro imágenes. No indiques un receptor si no dispones de ese dato.</Text>}{podCanSubmit ? <><View style={styles.choiceRow}><Pressable style={styles.podChoice} onPress={() => void takePhoto()}><Text style={styles.podChoiceText}>Tomar fotografía</Text></Pressable><Pressable style={styles.podChoice} onPress={() => void selectImage()}><Text style={styles.podChoiceText}>Seleccionar imagen</Text></Pressable></View>{evidence.map((asset, index) => <View key={`${asset.uri}-${index}`} style={styles.evidenceRow}><Text style={styles.evidenceText} numberOfLines={1}>{asset.fileName ?? `Evidencia ${index + 1}`}</Text><Pressable onPress={() => setEvidence((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Text style={styles.removeText}>Quitar</Text></Pressable></View>)}<TextInput value={receiverName} onChangeText={setReceiverName} placeholder="Receptor (opcional)" placeholderTextColor={colors.disabled} style={styles.singleInput} maxLength={160} /><TextInput value={observations} onChangeText={setObservations} placeholder="Observaciones de la entrega" placeholderTextColor={colors.disabled} style={styles.incidentInput} multiline maxLength={2000} /><PrimaryButton title={submittingPod ? "Enviando POD…" : "Enviar prueba de entrega"} busy={submittingPod} disabled={offline || evidence.length === 0} onPress={() => void submitPod()} /></> : null}{podMessage ? <Text accessibilityRole="alert" style={styles.trackingText}>{podMessage}</Text> : null}<SecondaryButton title="Abrir documentos del servicio" onPress={() => router.push({ pathname: "/services/[id]/documents", params: { id: item.id } })} /></View>
 
     <View style={styles.incidentCard}><Text style={styles.trackingEyebrow}>COMUNICAR INCIDENCIA</Text><View style={styles.choiceRow}>{(["DELAY", "BREAKDOWN", "LOADING_PROBLEM", "UNLOADING_PROBLEM", "WRONG_ADDRESS", "DOCUMENT_PROBLEM", "OTHER"] as IncidentType[]).map((type) => <Pressable key={type} onPress={() => setIncidentType(type)} style={[styles.choice, incidentType === type && styles.choiceActive]}><Text style={[styles.choiceText, incidentType === type && styles.choiceTextActive]}>{INCIDENT_LABELS[type]}</Text></Pressable>)}</View><View style={styles.choiceRow}>{(["LOW", "MEDIUM", "HIGH", "CRITICAL"] as IncidentPriority[]).map((priority) => <Pressable key={priority} onPress={() => setIncidentPriority(priority)} style={[styles.choice, incidentPriority === priority && styles.choiceActive]}><Text style={[styles.choiceText, incidentPriority === priority && styles.choiceTextActive]}>{priority}</Text></Pressable>)}</View><TextInput accessibilityLabel="Descripción de la incidencia" multiline value={incidentDescription} onChangeText={setIncidentDescription} placeholder="Describe qué ocurre y dónde" placeholderTextColor={colors.disabled} style={styles.incidentInput} />{incidentMessage ? <Text accessibilityRole="alert" style={styles.trackingText}>{incidentMessage}</Text> : null}<PrimaryButton title={sendingIncident ? "Enviando…" : "Enviar incidencia"} busy={sendingIncident} disabled={offline || incidentDescription.trim().length < 5} onPress={() => void reportIncident()} /></View>
-    <Text style={styles.note}>El GPS funciona en primer plano con permiso explícito. El seguimiento en segundo plano se preparará para Development Build en v0.6.5.</Text>
+    <Text style={styles.note}>El seguimiento se inicia de forma explícita para este servicio. En Development Build continúa con la pantalla bloqueada; iOS decide la frecuencia real de las muestras.</Text>
   </ScrollView></SafeAreaView>;
 }
 

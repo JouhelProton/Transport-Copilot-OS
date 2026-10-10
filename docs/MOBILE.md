@@ -38,7 +38,7 @@ La implementación Capacitor en `/frontend` queda **DEPRECATED para Driver App**
 
 ## Límites
 
-Expo Go es un cliente de desarrollo. v0.4 implementa GPS foreground con `expo-location`, pero no promete ejecución continua en segundo plano. La cámara/galería y el POD están implementados; la firma, push y tracking background siguen fuera. El siguiente paso nativo está definido en `BACKGROUND_TRACKING_PLAN.md` para v0.6.5.
+Expo Go es un cliente de desarrollo. Mantiene GPS foreground, cámara, galería y POD. v0.6.5 prepara Background Location con `expo-task-manager` y Development Build; Expo Go no sirve para validarlo. La firma y prueba física siguen pendientes según `V065_BACKGROUND_GPS.md`.
 # Hotfix de transporte POD (v0.6)
 
 El envío de POD usa XMLHttpRequest nativo para el multipart con archivos locales `{ uri, name, type }`. El conversor de Expo fetch instalado no admite esas entradas; el fallo ocurría antes de emitir una petición HTTP. Se conserva HTTPS, Bearer y el contrato multipart existente. Todas las peticiones FormData usan automáticamente este transporte, incluidas las subidas documentales independientes. No requieren una opción por endpoint. El timeout de archivos es de 120 segundos; las demás peticiones mantienen 12 segundos.

@@ -33,6 +33,12 @@ iOS puede entregar `-1` en `speed` o `heading` cuando el sensor no dispone de es
 
 La API registra el resultado de inicio, recepción y parada con `requestId`, organización, servicio, sesión y `sampleId`, sin registrar coordenadas, tokens ni credenciales. La inserción del histórico usa la restricción única de `sampleId` de forma atómica, de modo que reintentos concurrentes son idempotentes. El portal incluye un panel independiente del mapa con estado de sesión, última recepción, antigüedad, precisión y número de muestras.
 
+## v0.6.5 — Background GPS preparado
+
+La tarea global, el contexto persistente, la cola compartida, los permisos nativos y el perfil Development Build están implementados. Expo Go conserva el modo foreground y lo identifica como tal. La guía técnica y las pruebas físicas pendientes están en `docs/V065_BACKGROUND_GPS.md`.
+
+El portal diferencia `recordedAt` y `receivedAt`, muestra el retraso de sincronización y no interpola movimiento. La frecuencia objetivo es aproximada; iOS mantiene el control efectivo de las entregas.
+
 ## Límites físicos
 
-Esta versión es foreground. Expo Go no garantiza ejecución continua cuando iOS suspende la aplicación; tracking fiable en segundo plano requiere una development build, configuración nativa, revisión de permisos y validación de batería. La implementación no afirma background tracking ni protección absoluta contra spoofing. La prueba física final debe hacerla el usuario en un iPhone.
+Expo Go no garantiza ejecución continua cuando iOS suspende la aplicación. La implementación background requiere una Development Build firmada y todavía no ha sido validada con un iPhone bloqueado. Tampoco afirma protección absoluta contra spoofing. La prueba física final debe hacerla el usuario.

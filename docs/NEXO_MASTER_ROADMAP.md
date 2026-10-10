@@ -50,7 +50,7 @@ Documentos privados en almacenamiento local sustituible, metadatos y hashes en P
 
 ### v0.6.5 — Background GPS Tracking
 
-Development Build, permisos y tarea nativa explícita para seguimiento en segundo plano, según `docs/BACKGROUND_TRACKING_PLAN.md`. iOS decide la frecuencia efectiva y puede detener la aplicación tras un cierre forzado.
+Implementación técnica preparada: Development Build, permisos y tarea nativa explícita, cola offline y reconciliación segura según `docs/V065_BACKGROUND_GPS.md`. Sigue pendiente la validación física; iOS decide la frecuencia efectiva y puede detener la aplicación tras un cierre forzado.
 
 ### v0.7 — Automation Core
 

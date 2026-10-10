@@ -15,6 +15,7 @@
     "mobile:dev": "node scripts/expo-driver-dev.mjs",
     "mobile:dev:tunnel": "node scripts/expo-driver-dev.mjs --tunnel",
     "mobile:dev:lan": "node scripts/expo-driver-dev.mjs --lan",
+    "mobile:dev-client": "node scripts/expo-driver-dev.mjs --dev-client",
     "test:mobile-dev": "node --test scripts/tests/expo-driver-runtime.test.mjs"
   }
 }

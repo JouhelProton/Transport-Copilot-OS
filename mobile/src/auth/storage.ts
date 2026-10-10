@@ -12,7 +12,9 @@ export const authStorage: AuthStorage = {
   get: () => SecureStore.getItemAsync(SESSION_KEY),
   set: (token) =>
     SecureStore.setItemAsync(SESSION_KEY, token, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      // Background location may run while the screen is locked. The token stays
+      // device-bound, but becomes available after the first unlock following a reboot.
+      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
     }),
   clear: () => SecureStore.deleteItemAsync(SESSION_KEY),
 };

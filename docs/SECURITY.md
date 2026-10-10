@@ -75,3 +75,9 @@ La clave de Routes API es un secreto exclusivo de backend (`GOOGLE_ROUTES_API_KE
 `pnpm iphone:dev` publica únicamente Vite mediante una URL aleatoria de Cloudflare Quick Tunnel. Fastify y PostgreSQL permanecen en `127.0.0.1`; Vite reenvía `/api` en el mismo origen HTTPS de Safari. El backend se ejecuta con cookie `Secure`, valida el origen fijo del proxy local y conserva `HttpOnly`/`SameSite=Lax`. No se añade un origen dinámico ni un comodín CORS.
 
 La superficie de frontend se limita al portal Driver y no muestra accesos rápidos de seed. El túnel sí deja accesibles la pantalla de login, assets y proxy API mientras el proceso está activo. La URL no es un control de autorización: toda operación sigue dependiendo de sesión, RBAC, tenant y vínculo del conductor. Es un entorno efímero de demostración, sin datos reales ni garantía de disponibilidad; `Ctrl+C` elimina el acceso. El binario y `.iphone-preview.json` se ignoran en Git.
+
+## Background GPS v0.6.5
+
+La tarea global conserva únicamente el contexto de servicio/sesión y una cola acotada. El token opaco permanece separado en Keychain con acceso `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY`, necesario para operar con la pantalla bloqueada después del primer desbloqueo. Logout detiene la captura antes de borrar el token y el backend revoca las sesiones de tracking ligadas a la sesión autenticada.
+
+El backend continúa siendo la autoridad: asignación, organización y sesión activa se validan en cada posición. Los códigos 401, 403 y sesión terminada detienen la tarea local y aíslan su cola. No se registran coordenadas ni tokens. La retención y el borrado configurables siguen siendo requisito previo a producción; esta versión no elimina históricos existentes.

@@ -28,6 +28,17 @@ const REJECTED_KEY = "nexo.driver.tracking.rejected.v1";
 const LEGACY_STORAGE_KEY = "nexo.driver.tracking.queue.v1";
 export const MAX_PENDING = 100;
 export const MAX_REJECTED = 50;
+let mutationChain: Promise<void> = Promise.resolve();
+
+function secureOptions() {
+  return { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY };
+}
+
+function serialize<T>(operation: () => Promise<T>): Promise<T> {
+  const result = mutationChain.then(operation, operation);
+  mutationChain = result.then(() => undefined, () => undefined);
+  return result;
+}
 
 async function readArray<T>(key: string): Promise<T[]> {
   try {
@@ -45,7 +56,26 @@ export async function readPendingSamples(): Promise<PendingTrackingSample[]> {
 }
 
 export async function writePendingSamples(items: PendingTrackingSample[]) {
-  await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(items.slice(-MAX_PENDING)));
+  await serialize(() => SecureStore.setItemAsync(
+    STORAGE_KEY,
+    JSON.stringify(items.slice(-MAX_PENDING)),
+    secureOptions(),
+  ));
+}
+
+export function mutatePendingSamples<T>(
+  mutation: (items: PendingTrackingSample[]) => { items: PendingTrackingSample[]; result: T },
+) {
+  return serialize(async () => {
+    const current = (await readArray<PendingTrackingSample>(STORAGE_KEY)).slice(-MAX_PENDING);
+    const next = mutation(current);
+    await SecureStore.setItemAsync(
+      STORAGE_KEY,
+      JSON.stringify(next.items.slice(-MAX_PENDING)),
+      secureOptions(),
+    );
+    return next.result;
+  });
 }
 
 export async function readRejectedSamples(): Promise<RejectedTrackingSample[]> {
@@ -54,10 +84,21 @@ export async function readRejectedSamples(): Promise<RejectedTrackingSample[]> {
 
 export async function appendRejectedSamples(items: RejectedTrackingSample[]) {
   const existing = await readRejectedSamples();
-  await SecureStore.setItemAsync(
+  await serialize(() => SecureStore.setItemAsync(
     REJECTED_KEY,
     JSON.stringify([...existing, ...items].slice(-MAX_REJECTED)),
-  );
+    secureOptions(),
+  ));
+}
+
+export function enqueuePendingSample(item: PendingTrackingSample) {
+  return mutatePendingSamples((items) => {
+    if (items.some((existing) => existing.position.sampleId === item.position.sampleId))
+      return { items, result: null };
+    const combined = [...items, item];
+    const dropped = combined.length > MAX_PENDING ? combined[0]! : null;
+    return { items: combined.slice(-MAX_PENDING), result: dropped };
+  });
 }
 
 export async function archiveLegacySamples() {

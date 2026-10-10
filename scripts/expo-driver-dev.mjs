@@ -16,6 +16,7 @@ const cloudflared = join(root, ".tools", "cloudflared.exe");
 const backendPort = Number(process.env.MOBILE_BACKEND_PORT || 3101);
 const localApi = `http://127.0.0.1:${backendPort}`;
 const expoConnection = process.argv.includes("--lan") ? "--lan" : "--tunnel";
+const developmentClient = process.argv.includes("--dev-client");
 const previewMetadata = join(root, ".expo-driver-preview.json");
 const runLockPath = join(root, ".expo-driver-dev.lock");
 const children = new OwnedProcessRegistry();
@@ -159,22 +160,23 @@ try {
     backend: backendPlan.action === "REUSE" ? "reused" : "started",
     backendPid: backendPlan.pid ?? null,
     expoConnection,
+    developmentClient,
     readyVerifiedAt: new Date().toISOString(),
   }, null, 2)}\n`);
 
   console.log("\n============================================================");
-  console.log("TRANSPORT COPILOT DRIVER — EXPO GO");
+  console.log(`NEXO DRIVER — ${developmentClient ? "DEVELOPMENT BUILD" : "EXPO GO"}`);
   console.log(`API local: ${localApi}`);
   console.log(`API URL: ${publicApi}`);
   console.log("Túnel verificado contra el mismo backend NEXO: /ready = ok, PostgreSQL = ready");
   console.log(`Backend: ${backendPlan.action === "REUSE" ? "reutilizado; no se cerrará al salir" : "iniciado por este proceso"}`);
   console.log(`Expo: ${expoConnection === "--lan" ? "LAN (iPhone y Windows en la misma Wi-Fi)" : "túnel"}`);
   console.log(`EXPO_PUBLIC_API_URL: ${publicApi}`);
-  console.log("Escanea el QR que aparecerá a continuación con Expo Go.");
+  console.log(`Escanea el QR con ${developmentClient ? "la Development Build de NEXO Driver" : "Expo Go"}.`);
   console.log("Mantén esta terminal abierta. Ctrl+C cierra únicamente los procesos propios.");
   console.log("============================================================\n");
 
-  start("expo", process.execPath, [join(mobileRoot, "node_modules", "expo", "bin", "cli"), "start", expoConnection], {
+  start("expo", process.execPath, [join(mobileRoot, "node_modules", "expo", "bin", "cli"), "start", expoConnection, ...(developmentClient ? ["--dev-client"] : [])], {
     cwd: mobileRoot,
     env: { EXPO_PUBLIC_API_URL: publicApi },
     inherit: true,

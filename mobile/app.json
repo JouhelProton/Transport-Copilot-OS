@@ -2,7 +2,7 @@
   "expo": {
     "name": "NEXO Driver",
     "slug": "transport-copilot-driver",
-    "version": "0.3.5",
+    "version": "0.6.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "transportcopilot",
@@ -11,6 +11,9 @@
     "ios": {
       "bundleIdentifier": "com.transportcopilot.driver",
       "supportsTablet": false,
+      "infoPlist": {
+        "UIBackgroundModes": ["location"]
+      },
       "icon": "./assets/expo.icon"
     },
     "android": {
@@ -43,10 +46,15 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NEXO necesita tu ubicación mientras el seguimiento del servicio esté activo."
+          "locationWhenInUsePermission": "NEXO Driver usa tu ubicación durante el servicio que tú actives para informar a operaciones y al cliente autorizado.",
+          "locationAlwaysAndWhenInUsePermission": "NEXO Driver usa tu ubicación en segundo plano únicamente durante el servicio que tú actives, incluso con la pantalla bloqueada.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-dev-client"
     ],
     "experiments": {
       "typedRoutes": true

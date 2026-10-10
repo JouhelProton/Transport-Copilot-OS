@@ -121,7 +121,7 @@ export function createDriverApi(client: ApiClient = apiClient) {
       );
       return response.data;
     },
-    async submitPod(token: string, id: string, input: { deliveredAt: string; receiverName?: string; observations?: string; files: Array<{ uri: string; name: string; type: string }> }) {
+    async submitPod(token: string, id: string, input: { deliveredAt: string; receiverName?: string; observations?: string; files: { uri: string; name: string; type: string }[] }) {
       const form = new FormData();
       form.append("deliveredAt", input.deliveredAt);
       if (input.receiverName) form.append("receiverName", input.receiverName);

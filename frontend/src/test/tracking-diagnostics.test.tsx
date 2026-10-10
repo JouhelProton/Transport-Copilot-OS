@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { TrackingDiagnostics, trackingReceptionStatus } from "@/components/transportista/TrackingDiagnostics";
+import { TrackingDiagnostics, trackingDeliveryDelay, trackingReceptionStatus } from "@/components/transportista/TrackingDiagnostics";
 import type { ApiTrackingPosition } from "@/lib/api/operations";
 
 const position: ApiTrackingPosition = {
@@ -31,5 +31,10 @@ describe("Tracking diagnostics", () => {
     expect(screen.getByText("39.469900, -0.376300")).toBeTruthy();
     expect(screen.getByText("18 m")).toBeTruthy();
     expect(screen.getByText("3")).toBeTruthy();
+  });
+
+  it("keeps capture and reception time distinct for delayed batches", () => {
+    expect(trackingDeliveryDelay(position)).toBe(1);
+    expect(trackingDeliveryDelay({ ...position, receivedAt: "2026-10-08T15:02:00.000Z" })).toBe(120);
   });
 });

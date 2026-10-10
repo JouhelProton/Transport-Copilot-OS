@@ -104,6 +104,7 @@ export function createApiClient(options: ClientOptions = {}) {
                 ? "SERVER"
                 : "REQUEST";
           const requestId = body.error?.requestId ?? response.headers.get("x-request-id") ?? undefined;
+          // eslint-disable-next-line no-console -- development-only transport metadata; never logs payloads or tokens
           if (process.env.NODE_ENV !== "production") console.info("[NEXO API]", requestOptions.method ?? "GET", path, response.status, body.error?.code ?? "ok", `${Date.now() - startedAt}ms`, requestId ?? "-");
           throw new ApiError(
             body.error?.message ?? "No se ha podido completar la operación.",
@@ -120,6 +121,7 @@ export function createApiClient(options: ClientOptions = {}) {
           return JSON.parse(rawBody) as T;
         } catch {
           const requestId = response.headers.get("x-request-id") ?? undefined;
+          // eslint-disable-next-line no-console -- development-only transport metadata; never logs payloads or tokens
           if (process.env.NODE_ENV !== "production") console.info("[NEXO API]", requestOptions.method ?? "GET", path, "INVALID_JSON", `${Date.now() - startedAt}ms`, requestId ?? "-");
           throw new ApiError("El servidor respondió con un formato no válido.", "SERVER", response.status, "INVALID_JSON", requestId);
         }
@@ -127,6 +129,7 @@ export function createApiClient(options: ClientOptions = {}) {
         if (error instanceof ApiError) throw error;
         if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError"))
           throw new ApiError("El servidor ha tardado demasiado en responder.", "TIMEOUT");
+        // eslint-disable-next-line no-console -- development-only transport metadata; never logs payloads or tokens
         if (process.env.NODE_ENV !== "production") console.info("[NEXO API]", requestOptions.method ?? "GET", path, "FAILURE", stage, responseStatus ?? "NO_HTTP", error instanceof Error ? error.name : "UnknownError", error instanceof Error && /network request failed/i.test(error.message) ? "NATIVE_NETWORK_REQUEST_FAILED" : "OTHER_EXCEPTION", `${Date.now() - startedAt}ms`);
         if (stage !== "transport") throw new ApiError("No se pudo interpretar la respuesta del servidor.", "SERVER", responseStatus, "RESPONSE_READ_FAILED");
         throw new ApiError("No se puede conectar con el servidor.", "NETWORK");

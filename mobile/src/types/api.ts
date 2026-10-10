@@ -137,5 +137,5 @@ export interface DriverPod {
   status: PodStatus;
   verificationCode: string;
   documents: DriverDocument[];
-  history: Array<{ id: string; fromStatus: PodStatus | null; toStatus: PodStatus; reason: string | null; changedAt: string }>;
+  history: { id: string; fromStatus: PodStatus | null; toStatus: PodStatus; reason: string | null; changedAt: string }[];
 }

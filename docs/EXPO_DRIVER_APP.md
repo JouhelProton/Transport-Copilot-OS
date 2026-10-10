@@ -66,7 +66,7 @@ El arranque inspecciona `127.0.0.1:3101` antes de crear procesos. Reutiliza úni
 
 Expo Go permite validar navegación, UI nativa, `SecureStore`, conectividad y el flujo API actual. Es una herramienta de desarrollo y no una distribución final. No se han configurado EAS, Development Build, TestFlight, App Store Connect ni Apple Developer Program.
 
-v0.4 implementa GPS foreground, histórico y cola limitada de posiciones. La corrección v0.5.1 normaliza los valores `-1` de velocidad y rumbo que iOS usa cuando no hay lectura, conserva muestras ante fallos temporales y separa errores HTTP de falta de conectividad. Expo Go no garantiza tracking cuando iOS suspende la app; background location fiable probablemente exigirá Development Build/EAS y configuración nativa. Push, POD, cámara y firma siguen fuera de esta versión.
+v0.4 implementa GPS foreground, histórico y cola limitada de posiciones. La corrección v0.5.1 normaliza los valores `-1` de velocidad y rumbo que iOS usa cuando no hay lectura, conserva muestras ante fallos temporales y separa errores HTTP de falta de conectividad. v0.6 añadió cámara, documentos y POD. v0.6.5 prepara `expo-task-manager`, permisos nativos y Development Build para background location; Expo Go no lo valida y la firma/prueba física siguen pendientes. Consulta `V065_BACKGROUND_GPS.md`.
 
 ## Estado de sustitución
 

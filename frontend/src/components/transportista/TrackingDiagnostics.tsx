@@ -17,6 +17,11 @@ export function trackingReceptionStatus(
   };
 }
 
+export function trackingDeliveryDelay(position: ApiTrackingPosition | null) {
+  if (!position) return null;
+  return Math.max(0, Math.round((new Date(position.receivedAt).getTime() - new Date(position.recordedAt).getTime()) / 1_000));
+}
+
 export function TrackingDiagnostics({
   position,
   historyCount,
@@ -37,6 +42,7 @@ export function TrackingDiagnostics({
     : position
       ? { label: "Comprobando", ageSeconds: null }
       : { label: "Sin datos", ageSeconds: null };
+  const deliveryDelay = trackingDeliveryDelay(position);
 
   return (
     <section aria-label="Diagnóstico de tracking" className="rounded-xl border bg-card p-4">
@@ -44,10 +50,12 @@ export function TrackingDiagnostics({
         <h3 className="font-semibold">Diagnóstico de recepción GPS</h3>
         <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold">{status.label}</span>
       </div>
-      <dl className="grid gap-3 text-sm sm:grid-cols-3">
+      <dl className="grid gap-3 text-sm sm:grid-cols-4">
         <div><dt className="text-muted-foreground">Seguimiento</dt><dd className="font-medium">{session?.status === "ACTIVE" ? "Activo" : "Detenido"}</dd></div>
         <div><dt className="text-muted-foreground">Última posición recibida</dt><dd className="font-medium">{position ? `${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}` : "Sin datos"}</dd></div>
-        <div><dt className="text-muted-foreground">Hora de recepción</dt><dd className="font-medium">{position ? fmtDateTime(position.receivedAt) : "—"}</dd></div>
+        <div><dt className="text-muted-foreground">Hora capturada</dt><dd className="font-medium">{position ? fmtDateTime(position.recordedAt) : "—"}</dd></div>
+        <div><dt className="text-muted-foreground">Hora recibida</dt><dd className="font-medium">{position ? fmtDateTime(position.receivedAt) : "—"}</dd></div>
+        <div><dt className="text-muted-foreground">Retraso de envío</dt><dd className="font-medium">{deliveryDelay === null ? "—" : deliveryDelay > 90 ? `${deliveryDelay} s · diferido` : `${deliveryDelay} s`}</dd></div>
         <div><dt className="text-muted-foreground">Antigüedad</dt><dd className="font-medium">{status.ageSeconds === null ? "—" : `${status.ageSeconds} s`}</dd></div>
         <div><dt className="text-muted-foreground">Precisión</dt><dd className="font-medium">{position ? `${Math.round(position.accuracy)} m` : "—"}</dd></div>
         <div><dt className="text-muted-foreground">Muestras históricas</dt><dd className="font-medium">{historyCount}</dd></div>

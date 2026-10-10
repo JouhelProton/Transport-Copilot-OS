@@ -53,7 +53,9 @@ Almacenamiento privado local sustituible, metadatos y SHA-256 en PostgreSQL, per
 
 ## v0.6.5 — Background GPS Tracking
 
-**STATUS: PLANIFICADO**
+**STATUS: IMPLEMENTADO TÉCNICAMENTE — VALIDACIÓN FÍSICA CON DEVELOPMENT BUILD PENDIENTE**
+
+Tarea global de ubicación, permisos background, cola persistente, reconciliación de sesión, parada por logout/POD/revocación, diagnóstico móvil y portal con horas de captura y recepción. Expo Go mantiene el modo de prueba foreground. El cierre exige la lista física de `docs/V065_BACKGROUND_GPS.md`.
 
 Development Build y tarea nativa de ubicación en segundo plano con inicio/parada explícitos, cola offline y avisos de privacidad. La planificación está en `BACKGROUND_TRACKING_PLAN.md`; v0.6 no implementa tracking oculto ni promete intervalos exactos.
 

@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/auth/context";
 import { colors } from "@/theme/colors";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import "@/tracking/background-task";
 
 export default function RootLayout() {
   return (
